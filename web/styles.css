@@ -26,7 +26,7 @@ body {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 280px 1fr 370px;
+  grid-template-columns: 320px 1fr;
 }
 
 .sidebar {
@@ -305,19 +305,39 @@ canvas {
 .strategy-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 300px minmax(420px, 1fr) 320px;
+  grid-template-columns: 300px minmax(420px, 1fr) 370px;
 }
 
-.strategy-history,
-.agent-shell {
+.strategy-history {
   background: #141922;
   border-right: 1px solid var(--border);
   padding: 20px;
 }
 
 .agent-shell {
-  border-right: 0;
+  background: #141922;
   border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Agent 对话 iframe 填满右栏 */
+.agent-chat-panel {
+  padding: 0;
+}
+
+.agent-chat-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  flex: 1;
+}
+
+/* 中栏预览区域（relative 定位容器，供浮动文件预览使用） */
+.strategy-preview-area {
+  position: relative;
+  min-height: 500px;
 }
 
 .strategy-page-head {
@@ -523,24 +543,7 @@ canvas {
   background: #1a4450;
 }
 
-/* ── 右栏 Agent 对话面板 ─────────────────────────────── */
-.chat-panel {
-  min-width: 0;
-  border-left: 1px solid var(--border);
-  background: #141922;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.chat-frame {
-  width: 100%;
-  height: 100%;
-  border: none;
-  flex: 1;
-}
-
-/* ── 中栏浮动文件预览 ────────────────────────────────── */
+/* ── 策略页浮动文件预览（Agent 创建文件时在策略设置页中栏显示）── */
 .file-preview {
   position: absolute;
   top: 10%;
@@ -603,8 +606,8 @@ canvas {
 }
 
 @media (max-width: 1200px) {
-  .app-shell {
-    grid-template-columns: 280px 1fr 340px;
+  .strategy-shell {
+    grid-template-columns: 280px minmax(360px, 1fr) 340px;
   }
 }
 
@@ -616,10 +619,6 @@ canvas {
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--border);
-  }
-
-  .chat-panel {
-    display: none;
   }
 
   .file-preview {
@@ -641,10 +640,13 @@ canvas {
     grid-template-columns: 1fr;
   }
 
-  .strategy-history,
-  .agent-shell {
-    border: 0;
+  .strategy-history {
+    border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .agent-shell {
+    display: none;
   }
 
   .detail-metrics {
