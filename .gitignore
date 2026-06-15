@@ -15,6 +15,11 @@ reports/
 
 # Agent workspaces (generated)
 .exelixi/
+workspace/
+TODO.md
+SESSION_SUMMARY.md
+NOTEPAD.md
+HISTORY_SUMMARY.md
 
 # Environment (contains API keys)
 .env

@@ -86,8 +86,8 @@
       if (event.origin !== window.location.origin) return;
       const msg = event.data;
       if (msg?.type === "preview-file") {
-        // 存储文件信息但不自动弹出预览，等用户点击时再打开
-        pendingPreview = { name: msg.name || "file", content: msg.content || "" };
+        // 在中栏浮动窗口显示文件内容
+        showFilePreview(msg.name || "file", msg.content || "");
         // Agent 生成文件后标记当前策略为有效
         if (currentStrategyId && typeof markStrategyFileGenerated === "function") {
           markStrategyFileGenerated(currentStrategyId);
@@ -97,8 +97,6 @@
         updateAgentStatus(msg.status || "disconnected");
       }
     });
-
-    let pendingPreview = null;
 
     function showFilePreview(name, content) {
       const el = document.getElementById("filePreview");

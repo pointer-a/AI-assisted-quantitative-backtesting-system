@@ -34,6 +34,7 @@ WEB_ROOT = PROJECT_ROOT / "web"
 DATA_ROOT = PROJECT_ROOT / "数据"
 REPORTS_ROOT = PROJECT_ROOT / "reports"
 AGENT_STRATEGY_ROOT = PROJECT_ROOT / "Agent_strategy"
+AGENT_WORKSPACE = PROJECT_ROOT / "workspace"
 
 # 确保 mimetypes 识别 .js 等文件
 mimetypes.init()
@@ -165,7 +166,7 @@ async def ws_handler(ws: WebSocket) -> None:
                     user_input_handler = _bridge.make_user_input_handler(event_queue, loop)
                     for event in stream_session_events(
                         task,
-                        session_workspace=sw or PROJECT_ROOT,
+                        session_workspace=sw or AGENT_WORKSPACE,
                         max_attempts=int(data.get("max_attempts", 3)),
                         approval_mode=str(data.get("approval_mode", "auto")),
                         approval_handler=handler,
@@ -247,7 +248,7 @@ async def _safe_send(ws: WebSocket, event: dict[str, Any]) -> None:
 
 @agent_app.get("/api/workspaces")
 async def list_workspaces() -> list[dict[str, Any]]:
-    base = PROJECT_ROOT / ".exelixi" / "workspaces"
+    base = AGENT_WORKSPACE / ".exelixi" / "workspaces"
     if not base.is_dir():
         return []
     entries = []
