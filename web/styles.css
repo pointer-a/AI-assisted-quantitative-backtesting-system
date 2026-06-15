@@ -341,25 +341,13 @@ canvas {
   color: var(--accent);
 }
 
-/* ── Agent 卡片 ─────────────────────────────────────── */
-.agent-card {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel-2);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 480px;
-  overflow: hidden;
-}
-
-.agent-card-head {
+/* ── Agent 右栏 ─────────────────────────────────────── */
+.agent-shell-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -392,12 +380,24 @@ canvas {
   color: var(--muted);
 }
 
-.agent-card-frame {
+.agent-frame {
   width: 100%;
-  height: 100%;
   border: none;
   flex: 1;
-  min-height: 420px;
+  display: none;
+}
+
+.agent-frame.loaded {
+  display: block;
+}
+
+.agent-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 /* 中栏预览区域（relative 定位容器，供浮动文件预览使用） */

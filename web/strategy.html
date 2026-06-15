@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>策略设置</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="prefetch" href="/chat.html" as="document">
 </head>
 <body>
   <main class="strategy-shell">
@@ -63,19 +64,38 @@
 
     <!-- 右栏：Agent 接入 -->
     <aside class="agent-shell">
-      <div class="agent-card">
-        <div class="agent-card-head">
-          <span class="agent-title">策略生成 Agent</span>
-          <span class="agent-status disconnected" id="agentStatus">未连接</span>
-        </div>
-        <iframe id="chatFrame" src="/chat.html" class="agent-card-frame"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+      <div class="agent-shell-head">
+        <span class="agent-title">策略生成 Agent</span>
+        <span class="agent-status disconnected" id="agentStatus">未连接</span>
       </div>
+      <div id="agentLoading" class="agent-loading">Agent 加载中…</div>
+      <iframe id="chatFrame" class="agent-frame" data-src="/chat.html"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
     </aside>
   </main>
 
   <script src="/strategy-data.js"></script>
   <script src="/strategy.js"></script>
+  <!-- iframe 延迟加载 -->
+  <script>
+    (function() {
+      const frame = document.getElementById("chatFrame");
+      const loading = document.getElementById("agentLoading");
+      if (!frame || !loading) return;
+      // DOM 就绪后再加载 iframe
+      const src = frame.getAttribute("data-src");
+      if (!src) return;
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          frame.src = src;
+          frame.onload = () => {
+            frame.classList.add("loaded");
+            loading.hidden = true;
+          };
+        }, 100);
+      });
+    })();
+  </script>
   <!-- Agent 桥接 -->
   <script>
     // 当前选中的策略 ID，传递给 Agent 作为对话上下文
