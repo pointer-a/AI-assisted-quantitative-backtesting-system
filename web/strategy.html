@@ -84,18 +84,14 @@
       const frame = document.getElementById("chatFrame");
       const loading = document.getElementById("agentLoading");
       if (!frame || !loading) return;
-      // DOM 就绪后再加载 iframe
       const src = frame.getAttribute("data-src");
       if (!src) return;
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          frame.src = src;
-          frame.onload = () => {
-            frame.classList.add("loaded");
-            if (loading) loading.hidden = true;
-          };
-        }, 100);
-      });
+      // 先绑定 onload，再设 src（避免缓存命中时错过事件）
+      frame.onload = function() {
+        frame.classList.add("loaded");
+        loading.hidden = true;
+      };
+      frame.src = src;
     })();
   </script>
   <!-- Agent 桥接 -->
