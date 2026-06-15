@@ -1,0 +1,60 @@
+# AI 智能回测程序配置
+# 启动方式：python run.py
+
+# run：普通回测
+# optimize：智能参数优化
+mode = "optimize"
+
+[data]
+# 行情路径。可以是单个 CSV 文件，也可以是包含年度 CSV 的目录。
+path = "数据/BTC"
+# 需要拼合的年份。程序会按年份自动查找并拼合 CSV。
+years = [2021, 2022, 2023, 2024]
+# 也可以改用下面这种连续年份写法：
+# start_year = 2021
+# end_year = 2024
+# none：不压缩；daily：压缩为日线；hourly：压缩为小时线
+resample = "daily"
+
+[engine]
+# 初始资金
+capital = 100000
+# 手续费率，0.0005 表示万分之五
+commission = 0.0005
+# 滑点，单位 bps；1 表示万分之一
+slippage_bps = 1.0
+
+[strategy]
+# buy_hold / sma_cross / rsi_reversion / hybrid_trend_rsi
+name = "sma_cross"
+
+# 均线交叉参数
+fast = 10
+slow = 30
+
+# RSI 均值回归参数
+period = 14
+buy_below = 35
+sell_above = 65
+
+# 趋势 + RSI 混合策略参数
+rsi_period = 14
+max_rsi = 72
+
+[optimize]
+# 随机搜索次数
+trials = 30
+# 训练集比例
+train_ratio = 0.7
+# 随机种子，保证结果可复现
+seed = 7
+
+[output]
+# HTML 报告路径
+report = "reports/config_optimized_report.html"
+# 导出目录；留空则不导出 CSV
+export_dir = "reports/config_exports"
+# 优化候选参数 CSV
+optimization_csv = "reports/config_candidates.csv"
+# 终端展示前 N 个候选参数
+top_n = 5

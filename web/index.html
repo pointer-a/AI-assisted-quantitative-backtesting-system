@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 智能回测前端</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">AI</div>
+        <div>
+          <h1>智能回测</h1>
+          <p>行情加载与交易标记</p>
+        </div>
+      </div>
+
+      <section class="control-group">
+        <label for="marketSelect">币种</label>
+        <select id="marketSelect"></select>
+      </section>
+
+      <section class="control-group">
+        <div class="row-label">年份</div>
+        <div id="yearList" class="year-list"></div>
+      </section>
+
+      <section class="control-group">
+        <label for="resampleSelect">周期</label>
+        <select id="resampleSelect">
+          <option value="daily">日线</option>
+          <option value="hourly">小时线</option>
+          <option value="none">原始K线</option>
+        </select>
+      </section>
+
+      <section class="control-group">
+        <div class="row-label">策略设置</div>
+        <button id="strategySettingButton" class="strategy-setting-card" type="button">
+          <span id="selectedStrategyName">均线趋势 10/30</span>
+          <small id="selectedStrategyDesc">收益 70.13% · 胜率 40.00%</small>
+        </button>
+      </section>
+
+      <div class="grid-two">
+        <section class="control-group">
+          <label for="fastInput">快线</label>
+          <input id="fastInput" type="number" min="2" value="10">
+        </section>
+        <section class="control-group">
+          <label for="slowInput">慢线</label>
+          <input id="slowInput" type="number" min="3" value="30">
+        </section>
+      </div>
+
+      <div class="grid-two">
+        <section class="control-group">
+          <label for="capitalInput">资金</label>
+          <input id="capitalInput" type="number" min="1" value="100000">
+        </section>
+        <section class="control-group">
+          <label for="slippageInput">滑点bps</label>
+          <input id="slippageInput" type="number" min="0" step="0.1" value="1">
+        </section>
+      </div>
+
+      <section class="control-group">
+        <label for="commissionInput">手续费率</label>
+        <input id="commissionInput" type="number" min="0" step="0.0001" value="0.0005">
+      </section>
+
+      <div class="action-row">
+        <button id="loadButton" type="button">加载行情</button>
+        <button id="backtestButton" type="button" class="primary">开始回测</button>
+      </div>
+      <div id="loadProgress" class="load-progress" hidden>
+        <div class="load-progress-head">
+          <span id="loadProgressText">准备加载行情</span>
+          <span id="loadProgressValue">0%</span>
+        </div>
+        <div class="load-progress-track">
+          <i id="loadProgressBar"></i>
+        </div>
+      </div>
+      <div id="message" class="message"></div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div>
+          <div id="chartTitle" class="chart-title">等待加载行情</div>
+          <div id="chartSubtitle" class="chart-subtitle">选择币种和年份后加载</div>
+        </div>
+        <div class="legend">
+          <span><i class="line"></i>收盘价</span>
+          <span><i class="entry"></i>开仓点</span>
+          <span><i class="win"></i>盈利</span>
+          <span><i class="loss"></i>亏损</span>
+        </div>
+      </header>
+
+      <section class="chart-panel">
+        <canvas id="priceCanvas"></canvas>
+        <div id="tooltip" class="tooltip"></div>
+      </section>
+
+      <section class="summary-grid" id="summaryGrid"></section>
+    </section>
+  </main>
+  <script src="/strategy-data.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>策略设置</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="strategy-shell">
+    <aside class="strategy-history">
+      <div class="strategy-page-head">
+        <a class="back-link" href="/">返回回测</a>
+        <h1>历史策略</h1>
+      </div>
+      <div id="strategyList" class="history-list"></div>
+    </aside>
+
+    <section class="strategy-detail">
+      <header class="strategy-detail-head">
+        <div>
+          <div id="detailTitle" class="detail-title"></div>
+          <div id="detailDesc" class="detail-desc"></div>
+        </div>
+        <button id="useStrategyButton" class="primary compact-button" type="button">应用策略</button>
+      </header>
+
+      <section class="detail-metrics">
+        <article>
+          <span>收益</span>
+          <strong id="detailReturn"></strong>
+        </article>
+        <article>
+          <span>胜率</span>
+          <strong id="detailWinRate"></strong>
+        </article>
+        <article>
+          <span>策略类型</span>
+          <strong id="detailType"></strong>
+        </article>
+        <article>
+          <span>年份</span>
+          <strong id="detailYears"></strong>
+        </article>
+      </section>
+
+      <section class="rule-canvas" id="ruleCanvas"></section>
+    </section>
+
+    <aside class="agent-shell">
+      <div class="agent-card">
+        <div class="agent-title">策略生成 Agent</div>
+        <div class="agent-empty">待接入</div>
+      </div>
+    </aside>
+  </main>
+  <script src="/strategy-data.js"></script>
+  <script src="/strategy.js"></script>
+</body>
+</html>
