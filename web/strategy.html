@@ -64,10 +64,13 @@
     <!-- 右栏：Agent 接入 -->
     <aside class="agent-shell">
       <div class="agent-card">
+        <div class="agent-card-head">
+          <span class="agent-title">策略生成 Agent</span>
+          <span class="agent-status disconnected" id="agentStatus">未连接</span>
+        </div>
         <iframe id="chatFrame" src="/chat.html" class="agent-card-frame"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </div>
-      <span class="agent-status disconnected" id="agentStatus">未连接</span>
     </aside>
   </main>
 
@@ -82,7 +85,8 @@
       if (event.origin !== window.location.origin) return;
       const msg = event.data;
       if (msg?.type === "preview-file") {
-        showFilePreview(msg.name || "file", msg.content || "");
+        // 存储文件信息但不自动弹出预览，等用户点击时再打开
+        pendingPreview = { name: msg.name || "file", content: msg.content || "" };
         // Agent 生成文件后标记当前策略为有效
         if (currentStrategyId && typeof markStrategyFileGenerated === "function") {
           markStrategyFileGenerated(currentStrategyId);
@@ -92,6 +96,8 @@
         updateAgentStatus(msg.status || "disconnected");
       }
     });
+
+    let pendingPreview = null;
 
     function showFilePreview(name, content) {
       const el = document.getElementById("filePreview");
@@ -107,11 +113,10 @@
 
     function hideFilePreview() {
       const el = document.getElementById("filePreview");
-      const hintEl = document.getElementById("filePreviewHint");
       if (el) el.hidden = true;
-      if (hintEl) hintEl.hidden = false;
     }
 
+    // 点击关闭按钮或遮罩关闭
     document.getElementById("filePreviewClose")?.addEventListener("click", hideFilePreview);
 
     function updateAgentStatus(status) {
