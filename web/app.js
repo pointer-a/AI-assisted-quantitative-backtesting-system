@@ -45,6 +45,8 @@ const el = {
   canvas: document.querySelector("#priceCanvas"),
   tooltip: document.querySelector("#tooltip"),
   summary: document.querySelector("#summaryGrid"),
+  reportActions: document.querySelector("#reportActions"),
+  reportLink: document.querySelector("#reportLink"),
 };
 
 const ctx = el.canvas.getContext("2d");
@@ -140,9 +142,11 @@ async function loadPrices(options = {}) {
       state.trades = [];
       state.capitalEvents = [];
       state.metrics = [];
+      state.reportUrl = null;
       state.progress = null;
       resetZoom(false);
       renderSummary([]);
+      renderReportLink();
       updateTitle({ market: payload.market, years: payload.years, resample: payload.resample });
       updateLoadProgress("从缓存恢复", 1, true);
       const savedRecord = options.savedRecord || loadSavedLoadRecord();
@@ -171,9 +175,11 @@ async function loadPrices(options = {}) {
     state.trades = [];
     state.capitalEvents = [];
     state.metrics = [];
+    state.reportUrl = null;
     state.progress = null;
     resetZoom(false);
     renderSummary([]);
+    renderReportLink();
     updateTitle(payload);
     updateLoadProgress("行情加载完成", 1, true);
     const restoredBacktest = options.restored && restoreBacktestResult(savedRecord, payload);
@@ -214,7 +220,9 @@ async function runBacktest() {
   state.trades = [];
   state.capitalEvents = [];
   state.metrics = [];
+  state.reportUrl = null;
   renderSummary([]);
+  renderReportLink();
   drawChart();
   try {
     payload.strategy = strategyPayload();
@@ -331,8 +339,10 @@ function restoreBacktestResult(record, payload) {
   state.trades = record.backtest.trades || [];
   state.capitalEvents = record.backtest.capitalEvents || record.backtest.capital_events || [];
   state.metrics = record.backtest.metrics || [];
+  state.reportUrl = record.backtest.reportUrl || null;
   indexAnnotations();
   renderSummary(state.metrics);
+  renderReportLink();
   return true;
 }
 
@@ -413,8 +423,10 @@ function applyBacktestResult(data, payload) {
   state.metrics = data.metrics || [];
   state.progress = null;
   state.activeJobId = null;
+  state.reportUrl = data.report_url || null;
   resetZoom(false);
   renderSummary(state.metrics);
+  renderReportLink();
   updateTitle({ ...payload, bar_count: data.bar_count, start_date: data.start_date, end_date: data.end_date });
   saveLoadRecord(true, {
     backtest: {
@@ -422,11 +434,22 @@ function applyBacktestResult(data, payload) {
       trades: state.trades,
       capitalEvents: state.capitalEvents,
       metrics: state.metrics,
+      reportUrl: state.reportUrl,
       completedAt: new Date().toISOString(),
     },
   });
   showMessage(`回测完成，交易标记 ${state.markers.length} 个，交易区间 ${state.trades.length} 段`);
   drawChart();
+}
+
+function renderReportLink() {
+  if (!el.reportActions || !el.reportLink) return;
+  if (state.reportUrl) {
+    el.reportLink.href = state.reportUrl;
+    el.reportActions.hidden = false;
+  } else {
+    el.reportActions.hidden = true;
+  }
 }
 
 function strategyPayload() {

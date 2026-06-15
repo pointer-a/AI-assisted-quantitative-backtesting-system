@@ -9,6 +9,19 @@ from typing import Any
 from .models import BacktestResult
 
 
+REPORTS_ROOT = Path(__file__).resolve().parent.parent / "reports"
+
+
+def make_report_path(strategy_name: str, years: list[int]) -> Path:
+    """按策略+年份分类的报告目录路径：reports/{strategy}/{years}/"""
+    base = REPORTS_ROOT / strategy_name
+    if len(years) == 1:
+        base = base / str(years[0])
+    elif len(years) > 1:
+        base = base / f"{min(years)}_{max(years)}"
+    return base
+
+
 def write_html_report(result: BacktestResult, path: str | Path, title: str = "回测报告") -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import mimetypes
 import time
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -12,7 +13,7 @@ from urllib.parse import unquote, urlparse
 from .data import discover_year_files, load_year_csvs, longest_contiguous_years
 from .engine import BacktestEngine
 from .jobs import BacktestJobStore
-from .report import METRIC_LABELS
+from .report import METRIC_LABELS, REPORTS_ROOT, make_report_path, write_csv_exports, write_html_report
 from .strategies import create_strategy
 
 
@@ -50,6 +51,9 @@ class WebHandler(SimpleHTTPRequestHandler):
                 return
             self._send_json({"job": job})
             return
+        if parsed.path.startswith("/reports/"):
+            self._serve_report(unquote(parsed.path))
+            return
         if parsed.path.startswith("/api/"):
             self._send_json({"error": "接口不存在"}, status=HTTPStatus.NOT_FOUND)
             return
@@ -73,6 +77,27 @@ class WebHandler(SimpleHTTPRequestHandler):
             self._send_json(exc.payload, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _serve_report(self, request_path: str) -> None:
+        relative = request_path.removeprefix("/reports/").lstrip("/")
+        # 防止路径遍历
+        if ".." in relative or relative.startswith("/"):
+            self._send_json({"error": "路径不合法"}, status=HTTPStatus.FORBIDDEN)
+            return
+        file_path = (REPORTS_ROOT / relative).resolve()
+        if not str(file_path).startswith(str(REPORTS_ROOT.resolve())):
+            self._send_json({"error": "路径不合法"}, status=HTTPStatus.FORBIDDEN)
+            return
+        if not file_path.is_file():
+            self._send_json({"error": "报告不存在"}, status=HTTPStatus.NOT_FOUND)
+            return
+        mime_type, _ = mimetypes.guess_type(str(file_path))
+        content = file_path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", mime_type or "application/octet-stream")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -244,6 +269,12 @@ def _backtest_payload(payload: dict[str, Any], progress_callback=None, include_p
     if progress_callback is not None:
         progress_callback({"type": "progress", "phase": "整理结果", "ratio": 0.98, "index": len(bars) - 1, "total": len(bars)})
 
+    # 生成分类 HTML 报告
+    report_dir = make_report_path(strategy_name, years)
+    report_path = write_html_report(result, report_dir / "report.html", title="AI 智能回测报告")
+    write_csv_exports(result, report_dir)
+    report_url = f"/reports/{report_path.relative_to(REPORTS_ROOT).as_posix()}"
+
     response = {
         "market": market,
         "years": years,
@@ -251,6 +282,7 @@ def _backtest_payload(payload: dict[str, Any], progress_callback=None, include_p
         "bar_count": len(bars),
         "start_date": bars[0].date.isoformat(sep=" ") if bars else "",
         "end_date": bars[-1].date.isoformat(sep=" ") if bars else "",
+        "report_url": report_url,
         "markers": _trade_markers(result),
         "capital_events": [_capital_event_to_dict(event) for event in result.capital_events],
         "orders": [_order_to_dict(order) for order in result.orders],

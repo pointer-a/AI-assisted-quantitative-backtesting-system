@@ -8,7 +8,7 @@ from typing import Any
 from .data import discover_year_files, load_csv, load_year_csvs, longest_contiguous_years
 from .engine import BacktestEngine
 from .optimizer import OptimizationCandidate, optimize_strategy, run_best
-from .report import write_csv_exports, write_html_report, write_optimization_csv
+from .report import make_report_path, write_csv_exports, write_html_report, write_optimization_csv
 from .strategies import create_strategy
 
 
@@ -62,24 +62,27 @@ def run_from_config(config_path: str | Path = "config.toml") -> None:
             optimize_config=optimize_config,
             output_config=output_config,
             base_dir=base_dir,
+            used_years=used_years,
         )
     elif mode == "run":
         strategy = create_strategy(strategy_name, **_strategy_params(strategy_config))
         result = engine.run(bars, strategy)
+        default_dir = make_report_path(strategy_name, used_years if used_years else configured_years)
         report_path = write_html_report(
             result,
-            _resolve_path(base_dir, output_config.get("report", "reports/backtest_report.html")),
+            _resolve_path(base_dir, output_config.get("report", str(default_dir / "report.html"))),
             title="AI 智能回测报告",
         )
         export_dir = str(output_config.get("export_dir", "")).strip()
         if export_dir:
             write_csv_exports(result, _resolve_path(base_dir, export_dir))
+        else:
+            write_csv_exports(result, default_dir)
         print("\n回测结果：")
         print_summary(result.metrics)
         print(f"订单数量：{len(result.orders)}")
         print(f"报告路径：{report_path.resolve()}")
-        if export_dir:
-            print(f"导出目录：{_resolve_path(base_dir, export_dir)}")
+        print(f"导出目录：{export_dir if export_dir else default_dir.resolve()}")
     else:
         raise ValueError("mode 只能配置为 run 或 optimize")
 
@@ -119,6 +122,7 @@ def _run_optimization(
     optimize_config: dict[str, Any],
     output_config: dict[str, Any],
     base_dir: Path,
+    used_years: list[int],
 ) -> None:
     candidates = optimize_strategy(
         bars=bars,
@@ -133,26 +137,28 @@ def _run_optimization(
 
     print_candidates(candidates, top_n=int(output_config.get("top_n", 5)))
     result = run_best(bars, strategy_name, engine, candidates)
+    default_dir = make_report_path(strategy_name, used_years)
     report_path = write_html_report(
         result,
-        _resolve_path(base_dir, output_config.get("report", "reports/optimized_report.html")),
+        _resolve_path(base_dir, output_config.get("report", str(default_dir / "report.html"))),
         title="AI 智能优化回测报告",
     )
     optimization_path = write_optimization_csv(
         candidates,
-        _resolve_path(base_dir, output_config.get("optimization_csv", "reports/optimization_candidates.csv")),
+        _resolve_path(base_dir, output_config.get("optimization_csv", str(default_dir / "candidates.csv"))),
     )
     export_dir = str(output_config.get("export_dir", "")).strip()
     if export_dir:
         write_csv_exports(result, _resolve_path(base_dir, export_dir))
+    else:
+        write_csv_exports(result, default_dir)
 
     print("\n最佳参数全周期回测结果：")
     print_summary(result.metrics)
     print(f"订单数量：{len(result.orders)}")
     print(f"报告路径：{report_path.resolve()}")
     print(f"优化结果CSV：{optimization_path.resolve()}")
-    if export_dir:
-        print(f"导出目录：{_resolve_path(base_dir, export_dir)}")
+    print(f"导出目录：{export_dir if export_dir else default_dir.resolve()}")
 
 
 def _load_config(path: Path) -> dict[str, Any]:
