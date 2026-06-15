@@ -500,8 +500,7 @@ canvas {
   margin: 18px 0;
 }
 
-.detail-metrics article,
-.agent-card {
+.detail-metrics article {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel-2);
@@ -559,21 +558,6 @@ canvas {
 
 .rule-node strong {
   font-size: 15px;
-}
-
-.agent-title {
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.agent-empty {
-  height: 420px;
-  margin-top: 16px;
-  display: grid;
-  place-items: center;
-  border: 1px dashed #475569;
-  border-radius: 8px;
-  color: var(--muted);
 }
 
 .metric-card {
