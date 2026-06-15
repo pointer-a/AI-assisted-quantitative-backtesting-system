@@ -314,13 +314,6 @@ canvas {
   padding: 20px;
 }
 
-.agent-shell {
-  background: #141922;
-  border-left: 1px solid var(--border);
-  padding: 20px;
-  overflow-y: auto;
-}
-
 /* ── 新建策略按钮 ───────────────────────────────────── */
 .new-strategy-btn {
   width: 100%;
@@ -745,10 +738,7 @@ canvas {
   .agent-shell {
     border-left: 0;
     border-top: 1px solid var(--border);
-  }
-
-  .agent-card {
-    min-height: 360px;
+    padding: 12px;
   }
 
   .detail-metrics {
