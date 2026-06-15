@@ -15,6 +15,7 @@
         <h1>历史策略</h1>
       </div>
       <div id="strategyList" class="history-list"></div>
+      <button id="newStrategyBtn" class="new-strategy-btn" type="button">+ 新建策略</button>
     </aside>
 
     <!-- 中栏：策略详情 + 浮动文件预览 -->
@@ -46,7 +47,7 @@
         </article>
       </section>
 
-      <!-- 浮动文件预览浮窗（Agent 创建文件时显示） -->
+      <!-- 策略规则 + 浮动文件预览 -->
       <div class="strategy-preview-area">
         <section class="rule-canvas" id="ruleCanvas"></section>
         <div id="filePreview" class="file-preview" hidden>
@@ -54,6 +55,7 @@
             <span id="filePreviewName">—</span>
             <button id="filePreviewClose" type="button" class="fp-close-btn">&times;</button>
           </div>
+          <div class="file-preview-hint" id="filePreviewHint">Agent 创建策略文件后，点击文件即可在此预览代码</div>
           <pre id="filePreviewContent" class="file-preview-body"></pre>
         </div>
       </div>
@@ -62,7 +64,10 @@
     <!-- 右栏：Agent 接入 -->
     <aside class="agent-shell">
       <div class="agent-card">
-        <div class="agent-title">策略生成 Agent</div>
+        <div class="agent-card-head">
+          <span class="agent-title">策略生成 Agent</span>
+          <span class="agent-status disconnected" id="agentStatus">未连接</span>
+        </div>
         <iframe id="chatFrame" src="/chat.html" class="agent-card-frame"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </div>
@@ -71,13 +76,19 @@
 
   <script src="/strategy-data.js"></script>
   <script src="/strategy.js"></script>
-  <!-- Agent 文件预览桥接 -->
+  <!-- Agent 桥接 -->
   <script>
+    // 当前选中的策略 ID，传递给 Agent 作为对话上下文
+    let currentStrategyId = null;
+
     window.addEventListener("message", (event) => {
       if (event.origin !== window.location.origin) return;
       const msg = event.data;
       if (msg?.type === "preview-file") {
         showFilePreview(msg.name || "file", msg.content || "");
+      }
+      if (msg?.type === "agent-status") {
+        updateAgentStatus(msg.status || "disconnected");
       }
     });
 
@@ -85,15 +96,42 @@
       const el = document.getElementById("filePreview");
       const nameEl = document.getElementById("filePreviewName");
       const contentEl = document.getElementById("filePreviewContent");
+      const hintEl = document.getElementById("filePreviewHint");
       if (!el || !nameEl || !contentEl) return;
       nameEl.textContent = "Agent_strategy/" + name;
       contentEl.textContent = content;
+      if (hintEl) hintEl.hidden = true;
       el.hidden = false;
     }
 
-    document.getElementById("filePreviewClose")?.addEventListener("click", () => {
-      document.getElementById("filePreview").hidden = true;
-    });
+    function hideFilePreview() {
+      const el = document.getElementById("filePreview");
+      const hintEl = document.getElementById("filePreviewHint");
+      if (el) el.hidden = true;
+      if (hintEl) hintEl.hidden = false;
+    }
+
+    document.getElementById("filePreviewClose")?.addEventListener("click", hideFilePreview);
+
+    function updateAgentStatus(status) {
+      const badge = document.getElementById("agentStatus");
+      if (!badge) return;
+      badge.textContent = status === "connected" ? "已连接" : status === "running" ? "运行中" : "未连接";
+      badge.className = "agent-status " + status;
+    }
+
+    // 发送策略上下文到 Agent iframe
+    function sendStrategyToAgent(strategyId, strategyName) {
+      currentStrategyId = strategyId;
+      const frame = document.getElementById("chatFrame");
+      if (frame && frame.contentWindow) {
+        frame.contentWindow.postMessage({
+          type: "set-strategy",
+          strategyId: strategyId,
+          strategyName: strategyName,
+        }, window.location.origin);
+      }
+    }
   </script>
 </body>
 </html>

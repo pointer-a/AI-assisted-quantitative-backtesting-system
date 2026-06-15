@@ -268,22 +268,22 @@ body{
   .turn-events{padding:2px 10px 6px}
 }
 
-/* ── Modern workbench refresh ────────────────────────── */
+/* ── Align with ai-backtester theme ──────────────────── */
 :root{
-  --bg:#0f1115;
-  --panel:#171a20;
-  --panel-2:#1d222b;
-  --surface:#222833;
-  --surface-soft:#151922;
-  --line:#2b3340;
+  --bg:#11151b;
+  --panel:#171c24;
+  --panel-2:#1d2430;
+  --surface:#202938;
+  --surface-soft:#141922;
+  --line:#293241;
   --line-soft:#222936;
-  --text:#edf1f5;
-  --muted:#96a1ae;
-  --faint:#687482;
-  --cyan:#5fd2c2;
-  --green:#79d887;
-  --amber:#f0bc65;
-  --red:#ee746f;
+  --text:#e8edf5;
+  --muted:#8e9aab;
+  --faint:#64748b;
+  --cyan:#3ab7bf;
+  --green:#22c55e;
+  --amber:#f5b700;
+  --red:#ef4444;
   --violet:#b894f6;
   --blue:#77a7ff;
   --shadow:0 22px 60px #0000004d;
@@ -1659,8 +1659,8 @@ body{min-width:0}
 </head>
 <body>
 
-<!-- Header -->
-<header id="header">
+<!-- Header (hidden — 连接状态由父页面显示) -->
+<header id="header" hidden>
   <span class="logo">MC</span>
   <span class="title">Exelixi</span>
   <span class="sub">Agent 工作台</span>
@@ -1668,12 +1668,12 @@ body{min-width:0}
   <span class="status-badge disconnected" id="status-badge">未连接</span>
 </header>
 
-<!-- Session bar -->
-<div id="session-bar"><span class="sb-label">Session:</span><span class="sb-value" id="session-id-display">—</span></div>
+<!-- Session bar (hidden) -->
+<div id="session-bar" hidden><span class="sb-label">Session:</span><span class="sb-value" id="session-id-display">—</span></div>
 
 <!-- Main -->
 <div id="main">
-  <aside id="file-preview">
+  <aside id="file-preview" hidden>
     <div class="side-section">
       <h3>文件预览</h3>
       <div id="file-preview-list">
@@ -1690,7 +1690,7 @@ body{min-width:0}
       </div>
     </div>
   </div>
-  <aside id="sidebar">
+  <aside id="sidebar" hidden>
     <div class="side-section">
       <h3>当前会话</h3>
       <div class="side-row"><span class="label">状态</span><span class="value" id="side-status">未连接</span></div>
@@ -1856,7 +1856,14 @@ function setStatus(status) {
   const labels = { connecting: '连接中…', connected: '已连接', disconnected: '未连接', running: '运行中' };
   statusBadge.className = 'status-badge ' + status;
   statusBadge.textContent = labels[status] || status;
-  document.getElementById('side-status').textContent = labels[status] || status;
+  const sideStatus = document.getElementById('side-status');
+  if (sideStatus) sideStatus.textContent = labels[status] || status;
+  // 通知父页面连接状态
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'agent-status', status: status }, window.location.origin);
+    }
+  } catch (_) {}
 }
 
 // ── Turn Management ─────────────────────────────────────────────────────
@@ -3055,6 +3062,17 @@ function clearConversation(options = {}) {
 // ── Init ────────────────────────────────────────────────────────────────
 connect();
 loadSessions();
+
+// 监听父页面的策略上下文切换
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin) return;
+  const msg = event.data;
+  if (msg?.type === 'set-strategy' && msg.strategyName) {
+    // 将策略名称设置为当前任务上下文
+    taskInput.placeholder = '针对「' + msg.strategyName + '」输入策略需求…';
+    // 可选：自动填充预设提示词
+  }
+});
 </script>
 </body>
 </html>

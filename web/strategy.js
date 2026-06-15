@@ -12,12 +12,38 @@ const pageEl = {
   years: document.querySelector("#detailYears"),
   rules: document.querySelector("#ruleCanvas"),
   use: document.querySelector("#useStrategyButton"),
+  newBtn: document.querySelector("#newStrategyBtn"),
 };
 
 pageEl.use.addEventListener("click", () => {
   pageState.selected = saveSelectedStrategy(pageState.selected.id);
   renderList();
   renderDetail(pageState.selected);
+});
+
+// 新建策略：创建空白策略占位，Agent 右侧开始新对话
+pageEl.newBtn?.addEventListener("click", () => {
+  const id = "new-" + Date.now();
+  const newStrategy = {
+    id: id,
+    title: "新建策略…",
+    strategy: "",
+    yearsText: "—",
+    params: {},
+    returnText: "待回测",
+    winRateText: "待回测",
+    description: "通过右侧 Agent 对话生成新策略，或手动编写策略文件。",
+    rules: ["在右侧 Agent 中输入策略需求", "Agent 将代码写入 Agent_strategy/", "完成后注册到 strategies.py", "回测验证策略表现"],
+  };
+  STRATEGY_LIBRARY.unshift(newStrategy);
+  pageState.selected = newStrategy;
+  renderList();
+  renderDetail(pageState.selected);
+  hideFilePreview();
+  // 通知 Agent 开始新策略对话
+  if (typeof sendStrategyToAgent === "function") {
+    sendStrategyToAgent(id, "新建策略");
+  }
 });
 
 renderList();
@@ -36,13 +62,17 @@ function renderList() {
       pageState.selected = findStrategy(item.dataset.id);
       renderList();
       renderDetail(pageState.selected);
+      hideFilePreview();
+      // 切换到对应策略的 Agent 对话
+      if (typeof sendStrategyToAgent === "function") {
+        sendStrategyToAgent(pageState.selected.id, pageState.selected.title);
+      }
     });
   });
 }
 
 function renderDetail(strategy) {
   pageEl.title.textContent = strategy.title;
-  pageEl.desc.textContent = strategy.description;
   pageEl.returnText.textContent = strategy.returnText;
   pageEl.winRate.textContent = strategy.winRateText;
   pageEl.type.textContent = strategyTypeName(strategy.strategy);
@@ -67,5 +97,5 @@ function strategyTypeName(name) {
     sma_cross: "均线交叉",
     rsi_reversion: "RSI 回归",
     hybrid_trend_rsi: "趋势过滤",
-  }[name] || name;
+  }[name] || name || "自定义";
 }
