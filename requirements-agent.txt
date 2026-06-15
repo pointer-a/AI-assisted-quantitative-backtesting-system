@@ -1,0 +1,16 @@
+# Exelixi 依赖
+# 安装方式: pip install -r requirements.txt
+
+langchain>=1.2.15
+langchain-openai>=1.1.13
+langgraph>=1.1.6
+pillow>=11.0.0
+python-dotenv>=1.1.1
+tavily-python>=0.7.24
+textual>=8.2.4
+typer>=0.16.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# 开发依赖（可选）
+# pytest>=8.0.0

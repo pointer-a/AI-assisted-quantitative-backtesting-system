@@ -8,6 +8,7 @@
 </head>
 <body>
   <main class="app-shell">
+    <!-- 左栏：回测控制 -->
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">AI</div>
@@ -87,6 +88,7 @@
       <div id="message" class="message"></div>
     </aside>
 
+    <!-- 中栏：图表 + 浮动文件预览 -->
     <section class="workspace">
       <header class="topbar">
         <div>
@@ -104,6 +106,14 @@
       <section class="chart-panel">
         <canvas id="priceCanvas"></canvas>
         <div id="tooltip" class="tooltip"></div>
+        <!-- 浮动文件预览浮窗 -->
+        <div id="filePreview" class="file-preview" hidden>
+          <div class="file-preview-head">
+            <span id="filePreviewName">—</span>
+            <button id="filePreviewClose" type="button" class="fp-close-btn">&times;</button>
+          </div>
+          <pre id="filePreviewContent" class="file-preview-body"></pre>
+        </div>
       </section>
 
       <section class="summary-grid" id="summaryGrid"></section>
@@ -111,8 +121,46 @@
         <a id="reportLink" class="report-link" target="_blank" rel="noopener">查看详细回测报告</a>
       </div>
     </section>
+
+    <!-- 右栏：Agent 对话 -->
+    <aside class="chat-panel">
+      <iframe id="chatFrame" src="/chat.html" class="chat-frame"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+    </aside>
   </main>
+
   <script src="/strategy-data.js"></script>
   <script src="/app.js"></script>
+  <!-- 跨 iframe 消息桥接 -->
+  <script>
+    // 监听来自 chat iframe 的文件预览请求
+    window.addEventListener("message", (event) => {
+      if (event.origin !== window.location.origin) return;
+      const msg = event.data;
+      if (msg?.type === "preview-file") {
+        showFilePreview(msg.name || "file", msg.content || "");
+      }
+      if (msg?.type === "strategy-created") {
+        // Agent 创建了新策略，刷新策略库
+        if (typeof refreshSelectedStrategy === "function") {
+          refreshSelectedStrategy();
+        }
+      }
+    });
+
+    function showFilePreview(name, content) {
+      const el = document.getElementById("filePreview");
+      const nameEl = document.getElementById("filePreviewName");
+      const contentEl = document.getElementById("filePreviewContent");
+      if (!el || !nameEl || !contentEl) return;
+      nameEl.textContent = "Agent_strategy/" + name;
+      contentEl.textContent = content;
+      el.hidden = false;
+    }
+
+    document.getElementById("filePreviewClose")?.addEventListener("click", () => {
+      document.getElementById("filePreview").hidden = true;
+    });
+  </script>
 </body>
 </html>

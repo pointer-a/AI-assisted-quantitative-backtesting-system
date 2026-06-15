@@ -13,6 +13,12 @@ reports/
 # Market data (large CSV files)
 数据/
 
+# Agent workspaces (generated)
+.exelixi/
+
+# Environment (contains API keys)
+.env
+
 # OS
 .DS_Store
 Thumbs.db

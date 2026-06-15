@@ -1,0 +1,3060 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Exelixi Web</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  font-size:14px;line-height:1.5;
+  background:#101113;color:#d7d1c9;
+  display:flex;flex-direction:column;
+}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#101113}
+::-webkit-scrollbar-thumb{background:#3f474b;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#5a6468}
+
+/* ── Header ──────────────────────────────────────────── */
+#header{
+  display:flex;align-items:center;gap:12px;
+  padding:8px 16px;height:48px;flex-shrink:0;
+  background:#151719;border-bottom:1px solid #2f3437;
+}
+#header .logo{font-size:20px;color:#7fd6c2;font-weight:700}
+#header .title{font-size:16px;font-weight:600;color:#f3ede3}
+#header .sub{font-size:12px;color:#9aa4a6;margin-left:4px}
+#header .status-badge{
+  margin-left:auto;padding:2px 10px;border-radius:10px;
+  font-size:11px;font-weight:600;text-transform:uppercase;
+}
+.status-badge.connecting{background:#f4bf7533;color:#f4bf75}
+.status-badge.connected{background:#7fd68a33;color:#7fd68a}
+.status-badge.disconnected{background:#ef6f6c33;color:#ef6f6c}
+.status-badge.running{background:#7fd6c233;color:#7fd6c2}
+
+/* ── Main Layout ─────────────────────────────────────── */
+#main{display:flex;flex:1;min-height:0}
+#events{flex:1;overflow-y:auto;padding:0;min-width:0}
+#sidebar{
+  width:300px;flex-shrink:0;background:#151719;
+  border-left:1px solid #2f3437;overflow-y:auto;
+  padding:12px 14px;display:flex;flex-direction:column;gap:10px;
+}
+
+/* ── Turn Groups ─────────────────────────────────────── */
+.turn-group{margin:0;border-bottom:1px solid #25282a}
+.turn-group:last-child{border-bottom:none}
+.turn-header{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 16px 4px;font-size:11px;color:#6a7276;
+  user-select:none;position:sticky;top:0;z-index:2;
+  background:#101113;border-bottom:1px solid #1e2022;
+}
+.turn-header .turn-dot{width:6px;height:6px;border-radius:50%;background:#3f474b;flex-shrink:0}
+.turn-header .turn-dot.active{background:#f4bf75;animation:pulse 1.5s infinite}
+.turn-header .turn-dot.done{background:#7fd68a}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.turn-header .turn-label{font-weight:600;color:#9aa4a6}
+.turn-header .turn-time{margin-left:auto}
+.turn-header .turn-route{color:#7fd6c2;font-size:10px}
+
+/* ── User Message ────────────────────────────────────── */
+.user-msg-wrap{padding:8px 16px 4px;display:flex;gap:10px;align-items:flex-start}
+.user-msg-wrap .avatar{
+  width:28px;height:28px;border-radius:6px;
+  background:#f4bf7533;color:#f4bf75;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;flex-shrink:0;
+}
+.user-msg-wrap .bubble{
+  flex:1;min-width:0;background:#222426;
+  border:1px solid #2f3437;border-radius:6px 6px 6px 2px;
+  padding:8px 12px;font-size:14px;color:#f3ede3;
+  line-height:1.6;white-space:pre-wrap;word-break:break-word;
+}
+.user-msg-wrap .bubble .msg-meta{
+  font-size:11px;color:#6a7276;margin-top:4px;
+  display:flex;gap:12px;
+}
+
+/* ── Event Area inside turns ─────────────────────────── */
+.turn-events{padding:4px 16px 8px}
+
+/* ── Event Cards ─────────────────────────────────────── */
+.event-card{
+  margin-bottom:6px;border-radius:6px;
+  border-left:3px solid #3f474b;
+  background:#181a1c;overflow:hidden;
+}
+.event-card .head{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 12px;cursor:pointer;
+  user-select:none;font-size:12.5px;
+}
+.event-card .head .icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.event-card .head .title{font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-card .head .time{font-size:10px;color:#6a7276;flex-shrink:0}
+.event-card .head .expand{color:#6a7276;font-size:11px;transition:transform .15s;flex-shrink:0}
+.event-card .head .expand.open{transform:rotate(90deg)}
+.event-card .body{
+  padding:6px 12px 10px;font-size:12.5px;
+  border-top:1px solid #25282a;display:none;
+  white-space:pre-wrap;word-break:break-all;
+  color:#b7b0a8;max-height:260px;overflow-y:auto;
+  line-height:1.6;
+}
+.event-card .body.open{display:block}
+
+/* event type colors */
+.event-card.type-workspace{border-left-color:#7fd6c2}
+.event-card.type-intent{border-left-color:#7fd6c2}
+.event-card.type-chat{border-left-color:#7fd6c2}
+.event-card.type-plan{border-left-color:#f4bf75}
+.event-card.type-agent{border-left-color:#c792ea}
+.event-card.type-tool_call{border-left-color:#c792ea}
+.event-card.type-tool_result{border-left-color:#7fd68a}
+.event-card.type-tool_result-error{border-left-color:#ef6f6c}
+.event-card.type-handoff{border-left-color:#f4bf75}
+.event-card.type-context{border-left-color:#f4bf75}
+.event-card.type-memory{border-left-color:#7fd6c2}
+.event-card.type-checkpoint{border-left-color:#f4bf75}
+.event-card.type-trace{border-left-color:#7fd68a}
+.event-card.type-final{border-left-color:#7fd68a}
+.event-card.type-verifier{border-left-color:#7fd68a}
+.event-card.type-verifier-fail{border-left-color:#ef6f6c}
+.event-card.type-search{border-left-color:#7fd6c2}
+.event-card.type-session{border-left-color:#7fd6c2}
+.event-card.type-error{border-left-color:#ef6f6c}
+.event-card.type-done{border-left-color:#7fd68a}
+
+/* table inside event body */
+.event-card .body table{border-collapse:collapse;width:100%;margin:4px 0;font-size:11px}
+.event-card .body table th,.event-card .body table td{padding:2px 5px;text-align:left;border:1px solid #25282a}
+.event-card .body table th{background:#1e2022;color:#9aa4a6;font-weight:600}
+
+/* ── Turn Footer ─────────────────────────────────────── */
+.turn-footer{
+  padding:4px 16px 8px;font-size:11px;color:#6a7276;
+  display:flex;align-items:center;gap:6px;
+}
+.turn-footer .dot{width:5px;height:5px;border-radius:50%}
+.turn-footer .dot.done{background:#7fd68a}
+.turn-footer .dot.fail{background:#ef6f6c}
+
+/* ── Sidebar ─────────────────────────────────────────── */
+.side-section{margin-bottom:4px}
+.side-section h3{
+  font-size:11px;font-weight:600;text-transform:uppercase;
+  color:#6a7276;margin-bottom:6px;letter-spacing:.5px;
+  padding-bottom:4px;border-bottom:1px solid #25282a;
+}
+.side-row{display:flex;padding:2px 0;font-size:13px}
+.side-row .label{color:#9aa4a6;width:90px;flex-shrink:0}
+.side-row .value{color:#d7d1c9;word-break:break-all}
+.side-row .value.green{color:#7fd68a}
+.side-row .value.yellow{color:#f4bf75}
+.side-row .value.red{color:#ef6f6c}
+.side-row .value.cyan{color:#7fd6c2}
+
+.todo-item{display:flex;gap:6px;padding:2px 0;font-size:12.5px}
+.todo-item .mark{width:16px;flex-shrink:0;text-align:center}
+.todo-item .todo-text{flex:1;min-width:0}
+.todo-item.done .todo-text{text-decoration:line-through;color:#6a7276}
+.todo-item.active .mark{color:#f4bf75}
+.todo-item.done .mark{color:#7fd68a}
+.todo-item.pending .mark{color:#6a7276}
+
+/* event log in sidebar */
+#event-log .log-entry{
+  font-size:10.5px;padding:1.5px 0;
+  color:#6a7276;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#event-log .log-entry .lt{color:#9aa4a6}
+
+/* ── Input Area ──────────────────────────────────────── */
+#input-area{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 16px;flex-shrink:0;
+  background:#151719;border-top:1px solid #2f3437;
+}
+#input-area .prompt{color:#7fd6c2;font-weight:700;font-size:16px}
+#task-input{
+  flex:1;background:#1e2022;color:#f3ede3;
+  border:1px solid #3f474b;border-radius:6px;
+  padding:8px 12px;font-size:14px;outline:none;
+  font-family:inherit;
+}
+#task-input:focus{border-color:#7fd6c2}
+#task-input:disabled{opacity:.4}
+#send-btn{
+  background:#2f3437;color:#d7d1c9;border:none;
+  border-radius:6px;padding:8px 16px;
+  cursor:pointer;font-size:13px;font-weight:500;
+  transition:background .15s;white-space:nowrap;
+}
+#send-btn:hover:not(:disabled){background:#3f474b}
+#send-btn:disabled{opacity:.4;cursor:default}
+
+/* ── Approval Modal ──────────────────────────────────── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:#00000080;align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex}
+.modal-box{
+  background:#1e2022;border:1px solid #3f474b;
+  border-radius:10px;padding:24px;width:520px;max-width:90vw;
+  box-shadow:0 8px 32px #00000066;
+}
+.modal-box h2{font-size:16px;color:#f4bf75;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.modal-box .field{margin-bottom:12px}
+.modal-box .field-label{font-size:11px;color:#9aa4a6;text-transform:uppercase;margin-bottom:4px}
+.modal-box .field-value{
+  background:#101113;border-radius:6px;padding:8px 10px;
+  font-family:ui-monospace,'SF Mono','Cascadia Code','Consolas',monospace;
+  font-size:13px;white-space:pre-wrap;word-break:break-all;color:#d7d1c9;
+}
+.modal-box .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.modal-box .modal-actions button{
+  padding:8px 20px;border:none;border-radius:6px;
+  font-size:14px;font-weight:500;cursor:pointer;
+}
+.btn-approve{background:#7fd68a;color:#101113}
+.btn-approve:hover{background:#6bc478}
+.btn-reject{background:#ef6f6c;color:#fff}
+.btn-reject:hover{background:#e05552}
+
+/* ── Empty State ─────────────────────────────────────── */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;height:100%;color:#6a7276;gap:6px;
+  padding:20px;
+}
+.empty-state .big{font-size:42px}
+.empty-state .title{font-size:17px;font-weight:600;color:#7fd6c2}
+.empty-state .hint{font-size:13px;max-width:380px;text-align:center;line-height:1.6;color:#9aa4a6}
+.empty-state .hint kbd{
+  background:#25282a;padding:1px 6px;border-radius:4px;
+  font-size:12px;font-family:inherit;color:#b7b0a8;
+}
+.empty-state .shortcuts{
+  display:flex;gap:12px;margin-top:4px;flex-wrap:wrap;justify-content:center;
+}
+.empty-state .shortcuts .sc-item{
+  font-size:12px;padding:3px 10px;border-radius:4px;
+  background:#1e2022;color:#6a7276;
+}
+
+/* ── Session indicator ───────────────────────────────── */
+#session-bar{
+  display:none;padding:4px 16px;font-size:11px;
+  background:#151719;border-bottom:1px solid #2f3437;
+  color:#6a7276;gap:16px;align-items:center;
+}
+#session-bar.show{display:flex}
+#session-bar .sb-label{color:#9aa4a6}
+#session-bar .sb-value{color:#7fd6c2}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media(max-width:768px){
+  #sidebar{display:none}
+  #header .sub{display:none}
+  .user-msg-wrap{padding:8px 10px 2px}
+  .turn-events{padding:2px 10px 6px}
+}
+
+/* ── Modern workbench refresh ────────────────────────── */
+:root{
+  --bg:#0f1115;
+  --panel:#171a20;
+  --panel-2:#1d222b;
+  --surface:#222833;
+  --surface-soft:#151922;
+  --line:#2b3340;
+  --line-soft:#222936;
+  --text:#edf1f5;
+  --muted:#96a1ae;
+  --faint:#687482;
+  --cyan:#5fd2c2;
+  --green:#79d887;
+  --amber:#f0bc65;
+  --red:#ee746f;
+  --violet:#b894f6;
+  --blue:#77a7ff;
+  --shadow:0 22px 60px #0000004d;
+}
+body{
+  background:
+    radial-gradient(circle at top left,#1f3440 0,#12161d 34%,var(--bg) 72%);
+  color:var(--text);
+}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3a4654;border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:#4f5d6b}
+#header{
+  height:64px;
+  padding:0 22px;
+  gap:10px;
+  background:#12161df2;
+  border-bottom:1px solid var(--line);
+  box-shadow:0 1px 0 #ffffff08 inset;
+}
+#header .logo{
+  width:34px;
+  height:34px;
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(145deg,#5fd2c2,#77a7ff);
+  color:#081216;
+  font-size:16px;
+  font-weight:800;
+  letter-spacing:0;
+  box-shadow:0 10px 28px #5fd2c229;
+}
+#header .title{font-size:17px;letter-spacing:0;color:var(--text)}
+#header .sub{color:var(--muted);font-size:12px}
+#header .status-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:26px;
+  padding:0 11px;
+  border:1px solid currentColor;
+  border-radius:999px;
+  text-transform:none;
+  letter-spacing:0;
+}
+.status-badge::before{
+  content:"";
+  width:7px;
+  height:7px;
+  border-radius:999px;
+  background:currentColor;
+}
+.status-badge.connecting{background:#f0bc651f;color:var(--amber)}
+.status-badge.connected{background:#79d8871f;color:var(--green)}
+.status-badge.disconnected{background:#ee746f1f;color:var(--red)}
+.status-badge.running{background:#5fd2c21f;color:var(--cyan)}
+.header-action{
+  margin-left:auto;
+  height:32px;
+  padding:0 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#171c25;
+  color:var(--text);
+  cursor:pointer;
+  font:inherit;
+  font-size:12px;
+}
+.header-action:hover{border-color:var(--cyan);color:var(--cyan)}
+#header .header-action + .status-badge{margin-left:0}
+#session-bar{
+  padding:8px 22px;
+  background:#141922;
+  border-bottom:1px solid var(--line-soft);
+  color:var(--muted);
+}
+#session-bar .sb-value{
+  color:var(--cyan);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+#main{background:#0f111580}
+#events{
+  padding:18px clamp(12px,2vw,28px);
+  scroll-behavior:smooth;
+}
+#sidebar{
+  width:340px;
+  padding:18px;
+  gap:14px;
+  background:#12161df5;
+  border-left:1px solid var(--line);
+  box-shadow:-18px 0 44px #00000026;
+}
+.turn-group{
+  max-width:980px;
+  margin:0 auto 16px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  overflow:hidden;
+  background:#141922d9;
+  box-shadow:var(--shadow);
+}
+.turn-header{
+  top:-18px;
+  padding:10px 14px;
+  background:#171d26f7;
+  border-bottom:1px solid var(--line-soft);
+  color:var(--muted);
+}
+.turn-header .turn-dot{
+  width:8px;
+  height:8px;
+  background:var(--faint);
+}
+.turn-header .turn-dot.active{background:var(--amber)}
+.turn-header .turn-dot.done{background:var(--green)}
+.turn-header .turn-label{font-size:12px;color:var(--text)}
+.turn-header .turn-time{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.turn-header .turn-route{
+  color:var(--blue);
+  background:#77a7ff1a;
+  border:1px solid #77a7ff33;
+  border-radius:999px;
+  padding:2px 8px;
+}
+.user-msg-wrap{padding:16px 16px 8px;gap:12px}
+.user-msg-wrap .avatar{
+  width:32px;
+  height:32px;
+  border-radius:8px;
+  background:#f0bc6526;
+  color:var(--amber);
+  border:1px solid #f0bc6540;
+}
+.user-msg-wrap .bubble{
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  color:var(--text);
+  padding:11px 13px;
+  box-shadow:0 1px 0 #ffffff08 inset;
+}
+.user-msg-wrap .bubble .msg-meta{color:var(--faint)}
+.turn-events{padding:8px 16px 16px}
+.event-card{
+  margin-bottom:9px;
+  border:1px solid var(--line-soft);
+  border-left-width:4px;
+  border-radius:8px;
+  background:var(--surface-soft);
+  box-shadow:0 1px 0 #ffffff08 inset;
+}
+.event-card .head{
+  min-height:40px;
+  padding:8px 12px;
+  font-size:13px;
+}
+.event-card .head:hover{background:#ffffff05}
+.event-card .head .icon{
+  width:22px;
+  height:22px;
+  border-radius:6px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#ffffff0a;
+  font-size:12px;
+}
+.event-card .head .title{color:var(--text);font-weight:600}
+.event-card .head .visibility-badge{
+  flex-shrink:0;
+  padding:1px 6px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  color:var(--faint);
+  font-size:10px;
+}
+.event-card .head .time{
+  color:var(--faint);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.event-card .head .expand{font-size:10px;color:var(--muted)}
+.event-card.internal{
+  opacity:.72;
+  background:#11161d;
+}
+.event-card.internal .head{
+  min-height:32px;
+  padding:6px 10px;
+}
+.event-card.internal .head .title{
+  color:var(--muted);
+  font-weight:500;
+}
+.event-card.internal .body{
+  color:#aab4bf;
+}
+.event-card.internal-bucket{
+  border-left-color:var(--line);
+}
+.event-card.internal-bucket .head .icon{
+  background:#ffffff08;
+}
+.progress-card{
+  margin:8px 16px 10px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#111821;
+}
+.progress-card .progress-title{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  color:var(--text);
+  font-size:13px;
+  font-weight:700;
+}
+.progress-card .progress-detail{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+}
+.progress-steps{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+  margin-top:10px;
+}
+.progress-step{
+  min-width:0;
+  padding:6px 7px;
+  border:1px solid var(--line-soft);
+  border-radius:8px;
+  color:var(--faint);
+  background:#0f131a;
+  font-size:11px;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.progress-step.done{
+  border-color:#79d88766;
+  color:var(--green);
+  background:#79d88714;
+}
+.progress-step.active{
+  border-color:#5fd2c266;
+  color:var(--cyan);
+  background:#5fd2c214;
+}
+.assistant-msg-wrap{
+  padding:6px 16px 16px;
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+}
+.assistant-msg-wrap .avatar{
+  width:32px;
+  height:32px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  border:1px solid #5fd2c240;
+  background:#5fd2c214;
+  color:var(--cyan);
+  font-size:12px;
+  font-weight:700;
+}
+.assistant-msg-wrap .bubble{
+  flex:1;
+  min-width:0;
+  background:#171c25;
+  border:1px solid var(--line);
+  border-radius:8px;
+  color:#dce4ec;
+  padding:12px 14px;
+  line-height:1.65;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.event-card .body{
+  padding:12px 14px 14px;
+  background:#0f131a;
+  border-top:1px solid var(--line-soft);
+  color:#cbd4df;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12px;
+  line-height:1.65;
+  max-height:340px;
+}
+.event-card.type-workspace,
+.event-card.type-intent,
+.event-card.type-chat,
+.event-card.type-memory,
+.event-card.type-search,
+.event-card.type-session{border-left-color:var(--cyan)}
+.event-card.type-plan,
+.event-card.type-handoff,
+.event-card.type-context,
+.event-card.type-checkpoint{border-left-color:var(--amber)}
+.event-card.type-agent,
+.event-card.type-tool_call{border-left-color:var(--violet)}
+.event-card.type-tool_result,
+.event-card.type-trace,
+.event-card.type-final,
+.event-card.type-verifier,
+.event-card.type-done{border-left-color:var(--green)}
+.event-card.type-tool_result-error,
+.event-card.type-verifier-fail,
+.event-card.type-error{border-left-color:var(--red)}
+.turn-footer{
+  padding:10px 16px 14px;
+  color:var(--muted);
+  border-top:1px solid var(--line-soft);
+}
+.turn-footer .dot{width:7px;height:7px}
+.turn-footer .dot.done{background:var(--green)}
+.turn-footer .dot.fail{background:var(--red)}
+.session-separator{
+  max-width:980px;
+  margin:0 auto 16px;
+  padding:10px 14px;
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  border:1px dashed var(--line);
+  border-radius:8px;
+  background:#14192299;
+}
+.side-section{
+  margin:0;
+  padding:13px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#171c25;
+}
+.side-section h3{
+  margin-bottom:10px;
+  padding-bottom:8px;
+  border-bottom:1px solid var(--line-soft);
+  color:var(--muted);
+  letter-spacing:0;
+}
+.side-row{
+  align-items:flex-start;
+  gap:12px;
+  padding:5px 0;
+}
+.side-row .label{width:76px;color:var(--faint)}
+.side-row .value{color:var(--text)}
+.side-row .value.cyan{color:var(--cyan)}
+.todo-item{
+  gap:8px;
+  padding:6px 0;
+  border-bottom:1px solid #ffffff08;
+}
+.todo-item:last-child{border-bottom:0}
+.todo-item .mark{width:18px}
+.todo-item.done .todo-text{color:var(--faint)}
+.todo-item.active .mark{color:var(--amber)}
+.todo-item.done .mark{color:var(--green)}
+.todo-item.pending .mark{color:var(--faint)}
+#event-log .log-entry{
+  padding:4px 0;
+  color:var(--muted);
+  border-bottom:1px solid #ffffff08;
+}
+#event-log .log-entry:last-child{border-bottom:0}
+#event-log .log-entry .lt{color:var(--cyan)}
+.empty-inline{
+  color:var(--faint);
+  font-size:12px;
+}
+.session-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.session-item{
+  width:100%;
+  padding:9px;
+  border:1px solid var(--line-soft);
+  border-radius:8px;
+  background:#11161f;
+  color:var(--text);
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+}
+.session-item:hover{border-color:#5fd2c266;background:#151c27}
+.session-item.active{
+  border-color:var(--cyan);
+  background:#5fd2c214;
+}
+.session-item .session-title{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:12px;
+  font-weight:600;
+}
+.session-item .session-meta{
+  display:flex;
+  gap:8px;
+  margin-top:4px;
+  color:var(--faint);
+  font-size:11px;
+}
+.history-turn{
+  max-width:980px;
+  margin:0 auto 12px;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+.history-turn .history-role{
+  width:34px;
+  height:34px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  border:1px solid var(--line);
+  color:var(--muted);
+  background:#171c25;
+  font-size:12px;
+  font-weight:700;
+}
+.history-turn.user .history-role{
+  color:var(--amber);
+  border-color:#f0bc6540;
+  background:#f0bc6514;
+}
+.history-turn.assistant .history-role{
+  color:var(--cyan);
+  border-color:#5fd2c240;
+  background:#5fd2c214;
+}
+.history-turn .history-bubble{
+  flex:1;
+  min-width:0;
+  padding:11px 13px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#171c25;
+  color:#dce4ec;
+  line-height:1.65;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.history-turn .history-meta{
+  margin-top:6px;
+  color:var(--faint);
+  font-size:11px;
+}
+#input-area{
+  padding:14px 22px;
+  gap:12px;
+  background:#12161df5;
+  border-top:1px solid var(--line);
+  box-shadow:0 -18px 44px #0000002e;
+}
+#input-area .prompt{
+  width:30px;
+  height:30px;
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#5fd2c21a;
+  color:var(--cyan);
+}
+#task-input{
+  height:42px;
+  background:#171c25;
+  border:1px solid var(--line);
+  border-radius:8px;
+  color:var(--text);
+  padding:0 14px;
+  box-shadow:0 1px 0 #ffffff08 inset;
+}
+#task-input::placeholder{color:var(--faint)}
+#task-input:focus{
+  border-color:var(--cyan);
+  box-shadow:0 0 0 3px #5fd2c21f;
+}
+#send-btn{
+  min-width:90px;
+  height:42px;
+  border-radius:8px;
+  background:var(--cyan);
+  color:#071312;
+  font-weight:700;
+  box-shadow:0 12px 28px #5fd2c229;
+}
+#send-btn:hover:not(:disabled){background:#79dfd1}
+#send-btn:disabled{background:#303844;color:var(--faint);box-shadow:none}
+.modal-overlay{background:#07090dcc;backdrop-filter:blur(8px)}
+.modal-box{
+  background:#171c25;
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+}
+.modal-box h2{color:var(--amber)}
+.modal-box .field-label{color:var(--muted);letter-spacing:0}
+.modal-box .field-value{
+  background:#0f131a;
+  border:1px solid var(--line-soft);
+  color:#dce4ec;
+}
+.btn-approve{background:var(--green);color:#07100a}
+.btn-approve:hover{background:#8ee79a}
+.btn-reject{background:#ee746f;color:#fff}
+.btn-reject:hover{background:#ff8580}
+.empty-state{
+  min-height:100%;
+  height:auto;
+  gap:12px;
+  color:var(--muted);
+}
+.empty-state .big{
+  width:62px;
+  height:62px;
+  border-radius:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(145deg,#5fd2c2,#77a7ff);
+  color:#071312;
+  font-size:20px;
+  font-weight:900;
+  box-shadow:0 20px 50px #5fd2c229;
+}
+.empty-state .title{font-size:22px;color:var(--text)}
+.empty-state .hint{max-width:430px;color:var(--muted)}
+.empty-state .shortcuts .sc-item{
+  background:#171c25;
+  border:1px solid var(--line);
+  border-radius:8px;
+  color:var(--muted);
+}
+.empty-state .hint kbd,
+.empty-state .shortcuts kbd{
+  background:#0f131a;
+  border:1px solid var(--line);
+  border-radius:5px;
+  color:var(--text);
+}
+@media(max-width:900px){
+  #events{padding:12px}
+  #sidebar{display:none}
+  #header{padding:0 14px}
+  #input-area{padding:12px}
+}
+@media(max-width:560px){
+  #header{height:58px}
+  #header .title{font-size:15px}
+  #header .status-badge{padding:0 8px;font-size:10px}
+  .turn-group{margin-bottom:12px}
+  .turn-header{top:-12px;flex-wrap:wrap}
+  .turn-header .turn-time{margin-left:0}
+  .user-msg-wrap{padding:12px 12px 6px}
+  .user-msg-wrap .avatar{display:none}
+  .turn-events{padding:6px 12px 12px}
+  #input-area .prompt{display:none}
+  #send-btn{min-width:76px}
+}
+
+/* ── Portfolio-inspired light theme ───────────────────── */
+:root{
+  color-scheme:light;
+  --ink:#182026;
+  --muted:#60707c;
+  --line:#d8e0e5;
+  --panel:#ffffff;
+  --soft:#f5f7f4;
+  --accent:#0f7b75;
+  --accent-2:#c84b31;
+  --accent-3:#e8b33d;
+  --deep:#12242b;
+  --shadow:0 18px 46px rgba(22,36,43,.12);
+  --shadow-hover:0 24px 62px rgba(22,36,43,.18);
+  --bg:var(--soft);
+  --panel-2:#ffffff;
+  --surface:#ffffff;
+  --surface-soft:#f7faf8;
+  --line-soft:#e7edf0;
+  --text:var(--ink);
+  --faint:#8a99a4;
+  --cyan:var(--accent);
+  --green:#26845d;
+  --amber:var(--accent-3);
+  --red:var(--accent-2);
+  --violet:#5966a8;
+  --blue:#326c9f;
+}
+html,body{background:var(--soft)}
+body{
+  color:var(--ink);
+  background:
+    linear-gradient(90deg,rgba(15,123,117,.07) 1px,transparent 1px),
+    linear-gradient(rgba(15,123,117,.055) 1px,transparent 1px),
+    var(--soft);
+  background-size:44px 44px;
+  font-family:"Inter","Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;
+}
+::-webkit-scrollbar-thumb{background:#b9c8cf;border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:#8ea3ad}
+#header{
+  height:74px;
+  padding:16px clamp(18px,4vw,64px);
+  background:rgba(245,247,244,.88);
+  border-bottom:1px solid rgba(216,224,229,.8);
+  box-shadow:none;
+  backdrop-filter:blur(16px);
+}
+#header .logo{
+  width:42px;
+  height:42px;
+  border-radius:8px;
+  color:#fff;
+  background:var(--deep);
+  box-shadow:none;
+  font-size:15px;
+  font-weight:800;
+}
+#header .title{
+  color:var(--ink);
+  font-size:18px;
+  font-weight:820;
+}
+#header .sub{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:650;
+}
+.header-action{
+  min-height:42px;
+  padding:0 16px;
+  border:1px solid var(--deep);
+  border-radius:8px;
+  background:var(--deep);
+  color:#fff;
+  font-size:13px;
+  font-weight:760;
+  transition:transform 180ms ease,box-shadow 180ms ease,background 180ms ease,color 180ms ease;
+}
+.header-action:hover{
+  transform:translateY(-2px);
+  border-color:var(--deep);
+  color:#fff;
+  box-shadow:0 10px 24px rgba(18,36,43,.12);
+}
+#header .status-badge{
+  min-height:34px;
+  padding:0 12px;
+  border-radius:999px;
+  background:#fff;
+  font-size:12px;
+  font-weight:760;
+  box-shadow:0 6px 16px rgba(22,36,43,.06);
+}
+.status-badge.connecting{background:rgba(232,179,61,.16);color:#8c6613}
+.status-badge.connected{background:rgba(15,123,117,.12);color:var(--accent)}
+.status-badge.disconnected{background:rgba(200,75,49,.12);color:var(--accent-2)}
+.status-badge.running{background:rgba(15,123,117,.16);color:var(--accent)}
+#session-bar{
+  padding:8px clamp(18px,4vw,64px);
+  background:rgba(255,255,255,.74);
+  border-bottom:1px solid var(--line);
+  color:var(--muted);
+}
+#session-bar .sb-value{color:var(--accent)}
+#main{background:transparent}
+#events{
+  padding:22px clamp(18px,5vw,72px);
+}
+#sidebar{
+  width:360px;
+  padding:18px;
+  background:rgba(255,255,255,.54);
+  border-left:1px solid rgba(216,224,229,.9);
+  box-shadow:none;
+  backdrop-filter:blur(16px);
+}
+.turn-group{
+  max-width:1040px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(255,255,255,.9);
+  box-shadow:var(--shadow);
+  transition:box-shadow 220ms ease,transform 220ms ease,border-color 220ms ease;
+}
+.turn-group:hover{
+  border-color:rgba(15,123,117,.28);
+  box-shadow:var(--shadow-hover);
+}
+.turn-header{
+  top:-22px;
+  padding:12px 16px;
+  background:linear-gradient(135deg,rgba(18,36,43,.96),rgba(15,123,117,.9));
+  border-bottom:0;
+  color:rgba(255,255,255,.78);
+}
+.turn-header .turn-dot{background:rgba(255,255,255,.45)}
+.turn-header .turn-dot.active{background:var(--accent-3)}
+.turn-header .turn-dot.done{background:#8bd3a9}
+.turn-header .turn-label{color:#fff;font-weight:800}
+.turn-header .turn-route{
+  color:#fff;
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.28);
+}
+.user-msg-wrap,.assistant-msg-wrap{padding:18px 18px 10px}
+.user-msg-wrap .avatar,
+.assistant-msg-wrap .avatar{
+  border-radius:8px;
+  box-shadow:none;
+}
+.user-msg-wrap .avatar{
+  color:#fff;
+  border-color:transparent;
+  background:linear-gradient(135deg,var(--accent-3),var(--accent-2));
+}
+.assistant-msg-wrap .avatar{
+  color:#fff;
+  border-color:transparent;
+  background:linear-gradient(135deg,var(--accent),var(--deep));
+}
+.user-msg-wrap .bubble,
+.assistant-msg-wrap .bubble{
+  background:#fff;
+  border:1px solid var(--line);
+  color:#354650;
+  box-shadow:0 12px 28px rgba(22,36,43,.07);
+}
+.assistant-msg-wrap .bubble{background:linear-gradient(135deg,#fff,#f7faf8)}
+.assistant-msg-wrap .bubble.markdown-body,.history-bubble.markdown-body{white-space:normal}
+.markdown-body{
+  line-height:1.65;
+  overflow-wrap:anywhere;
+}
+.markdown-body h1,.markdown-body h2,.markdown-body h3{
+  margin:12px 0 8px;
+  color:var(--ink);
+  font-weight:800;
+  line-height:1.25;
+}
+.markdown-body h1{font-size:20px}
+.markdown-body h2{font-size:17px}
+.markdown-body h3{font-size:15px}
+.markdown-body p{margin:8px 0}
+.markdown-body ul,.markdown-body ol{margin:8px 0 8px 20px;padding:0}
+.markdown-body li{margin:4px 0}
+.markdown-body pre{
+  margin:10px 0;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#f7faf8;
+  overflow:auto;
+}
+.markdown-body code{
+  font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  font-size:.92em;
+}
+.markdown-body :not(pre)>code{
+  padding:1px 5px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#f7faf8;
+}
+.markdown-body a{color:var(--accent);font-weight:700;text-decoration:none}
+.markdown-body a:hover{text-decoration:underline}
+.markdown-body img{
+  display:block;
+  max-width:100%;
+  height:auto;
+  margin:10px 0;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+}
+.markdown-body blockquote{
+  margin:10px 0;
+  padding:6px 12px;
+  border-left:3px solid var(--accent);
+  color:var(--muted);
+  background:var(--soft);
+}
+.progress-card{
+  margin:10px 18px 12px;
+  padding:16px;
+  border:1px solid var(--line);
+  background:#fff;
+  box-shadow:0 12px 28px rgba(22,36,43,.07);
+}
+.progress-card .progress-title{color:var(--ink)}
+.progress-card .progress-detail{color:var(--muted);font-weight:650}
+.progress-step{
+  border-color:var(--line);
+  background:var(--soft);
+  color:var(--muted);
+  font-weight:760;
+}
+.progress-step.done{
+  border-color:rgba(15,123,117,.26);
+  color:var(--accent);
+  background:rgba(15,123,117,.08);
+}
+.progress-step.active{
+  border-color:rgba(232,179,61,.56);
+  color:#7b5610;
+  background:rgba(232,179,61,.16);
+}
+.turn-events{padding:8px 18px 18px}
+.event-card{
+  position:relative;
+  border:1px solid var(--line);
+  border-left-width:4px;
+  border-radius:8px;
+  background:rgba(255,255,255,.92);
+  box-shadow:0 12px 28px rgba(22,36,43,.07);
+  transition:transform 220ms ease,box-shadow 220ms ease,border-color 220ms ease;
+}
+.event-card:hover{
+  border-color:rgba(15,123,117,.32);
+  box-shadow:var(--shadow-hover);
+  transform:translateY(-2px);
+}
+.event-card .head{min-height:44px;padding:10px 13px}
+.event-card .head:hover{background:rgba(15,123,117,.035)}
+.event-card .head .icon{
+  border-radius:8px;
+  background:rgba(15,123,117,.08);
+}
+.event-card .head .title{color:var(--ink);font-weight:800}
+.event-card .head .time{color:var(--faint)}
+.event-card .head .visibility-badge{
+  border-color:var(--line);
+  color:var(--muted);
+  background:var(--soft);
+  font-weight:800;
+}
+.event-card .body{
+  background:#fbfcfa;
+  border-top:1px solid var(--line);
+  color:#41535c;
+}
+.event-card.internal{
+  opacity:.86;
+  background:#f8faf7;
+}
+.event-card.internal .head .title{color:var(--muted)}
+.event-card.type-workspace,
+.event-card.type-intent,
+.event-card.type-chat,
+.event-card.type-memory,
+.event-card.type-search,
+.event-card.type-session{border-left-color:var(--accent)}
+.event-card.type-plan,
+.event-card.type-handoff,
+.event-card.type-context,
+.event-card.type-checkpoint{border-left-color:var(--accent-3)}
+.event-card.type-agent,
+.event-card.type-tool_call{border-left-color:#6975b8}
+.event-card.type-tool_result,
+.event-card.type-trace,
+.event-card.type-final,
+.event-card.type-verifier,
+.event-card.type-done{border-left-color:var(--accent)}
+.event-card.type-tool_result-error,
+.event-card.type-verifier-fail,
+.event-card.type-error{border-left-color:var(--accent-2)}
+.turn-footer{
+  border-top:1px solid var(--line);
+  color:var(--muted);
+}
+.side-section{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(255,255,255,.88);
+  box-shadow:0 12px 28px rgba(22,36,43,.07);
+}
+.side-section h3{
+  color:var(--accent-2);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.side-row .label{color:var(--muted)}
+.side-row .value{color:var(--ink);font-weight:700}
+.side-row .value.cyan{color:var(--accent)}
+.session-item{
+  border-color:var(--line);
+  background:#fff;
+  box-shadow:0 8px 18px rgba(22,36,43,.05);
+  transition:transform 180ms ease,box-shadow 180ms ease,border-color 180ms ease;
+}
+.session-item:hover{
+  border-color:rgba(15,123,117,.35);
+  background:#fff;
+  transform:translateY(-2px);
+  box-shadow:0 14px 30px rgba(22,36,43,.11);
+}
+.session-item.active{
+  border-color:rgba(15,123,117,.45);
+  background:rgba(15,123,117,.07);
+}
+.session-item .session-title{color:var(--ink)}
+.session-item .session-meta{color:var(--muted)}
+.todo-item{border-bottom:1px solid rgba(216,224,229,.72)}
+.todo-item.done .todo-text{color:var(--muted)}
+#event-log .log-entry{
+  color:var(--muted);
+  border-bottom:1px solid rgba(216,224,229,.72);
+}
+#event-log .log-entry .lt{color:var(--accent)}
+.history-turn .history-role{
+  border-color:var(--line);
+  border-radius:8px;
+  background:#fff;
+}
+.history-turn.user .history-role{
+  color:#fff;
+  border-color:transparent;
+  background:linear-gradient(135deg,var(--accent-3),var(--accent-2));
+}
+.history-turn.assistant .history-role{
+  color:#fff;
+  border-color:transparent;
+  background:linear-gradient(135deg,var(--accent),var(--deep));
+}
+.history-turn .history-bubble{
+  border-color:var(--line);
+  background:#fff;
+  color:#354650;
+  box-shadow:0 12px 28px rgba(22,36,43,.07);
+}
+.history-workflow-card{
+  width:min(100%,1040px);
+  margin:0 auto 10px;
+}
+.history-workflow-card .event-card{
+  margin-bottom:0;
+}
+.history-workflow-card .body{
+  white-space:pre-wrap;
+}
+.workflow-event-line{
+  padding:8px 0;
+  border-bottom:1px solid var(--line);
+}
+.workflow-event-line:last-child{
+  border-bottom:0;
+}
+.workflow-event-title{
+  color:var(--ink);
+  font-weight:800;
+  margin-bottom:5px;
+}
+.workflow-event-line pre,
+.history-workflow-card .body > pre{
+  margin:0;
+  white-space:pre-wrap;
+  word-break:break-word;
+  font:inherit;
+  color:var(--muted);
+}
+#input-area{
+  padding:14px clamp(18px,4vw,64px);
+  background:rgba(245,247,244,.9);
+  border-top:1px solid var(--line);
+  box-shadow:none;
+  backdrop-filter:blur(16px);
+}
+#input-area .prompt{
+  border-radius:8px;
+  color:#fff;
+  background:var(--deep);
+}
+#task-input{
+  height:46px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  color:var(--ink);
+  box-shadow:0 8px 18px rgba(22,36,43,.05);
+}
+#task-input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(15,123,117,.12),0 10px 24px rgba(18,36,43,.1);
+}
+#send-btn{
+  height:46px;
+  min-width:96px;
+  border-radius:8px;
+  background:var(--deep);
+  color:#fff;
+  box-shadow:none;
+  transition:transform 180ms ease,box-shadow 180ms ease,background 180ms ease;
+}
+#send-btn:hover:not(:disabled){
+  background:var(--deep);
+  transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(18,36,43,.12);
+}
+#send-btn:disabled{
+  background:#d8e0e5;
+  color:#81919b;
+}
+.modal-overlay{background:rgba(18,32,38,.54)}
+.modal-box{
+  background:#fff;
+  border-color:var(--line);
+  box-shadow:var(--shadow-hover);
+}
+.modal-box h2{color:var(--accent-2)}
+.modal-box .field-label{color:var(--muted)}
+.modal-box .field-value{
+  background:var(--soft);
+  border:1px solid var(--line);
+  color:var(--ink);
+}
+.modal-textarea{
+  width:100%;
+  min-height:120px;
+  resize:vertical;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:10px 12px;
+  background:#fff;
+  color:var(--ink);
+  font:inherit;
+  outline:none;
+}
+.modal-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,123,117,.12)}
+.btn-approve{background:var(--deep);color:#fff}
+.btn-approve:hover{background:var(--accent)}
+.btn-reject{background:var(--accent-2)}
+.empty-state{color:var(--muted)}
+.empty-state .big{
+  border-radius:8px;
+  background:var(--deep);
+  color:#fff;
+  box-shadow:var(--shadow);
+}
+.empty-state .title{color:var(--ink);font-weight:860}
+.empty-state .hint{color:var(--muted);font-weight:650}
+.session-separator{
+  border-color:var(--line);
+  background:rgba(255,255,255,.8);
+  color:var(--muted);
+}
+@media(max-width:900px){
+  #header{
+    height:auto;
+    padding:14px 18px;
+    flex-wrap:wrap;
+  }
+  .header-action{margin-left:0}
+  #header .status-badge{margin-left:auto}
+  #events{padding:16px}
+}
+@media(max-width:560px){
+  #header .sub{display:none}
+  #header .status-badge{font-size:11px}
+  .progress-steps{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ── Layout polish ───────────────────────────────────── */
+body{min-width:0}
+#main{
+  display:grid;
+  grid-template-columns:minmax(260px,320px) minmax(0,1fr) minmax(300px,360px);
+  gap:0;
+}
+#events{
+  min-width:0;
+  padding:
+    clamp(18px,3vw,34px)
+    clamp(18px,6vw,92px)
+    clamp(18px,3vw,34px);
+}
+#file-preview{
+  min-width:0;
+  padding:18px;
+  background:rgba(255,255,255,.48);
+  border-right:1px solid rgba(216,224,229,.9);
+  backdrop-filter:blur(16px);
+  overflow:auto;
+}
+#sidebar{
+  position:relative;
+  width:auto;
+  min-width:0;
+  max-width:none;
+  align-self:stretch;
+}
+.turn-group,
+.history-turn,
+.session-separator{
+  width:min(100%,1040px);
+}
+.turn-group{
+  margin-left:auto;
+  margin-right:auto;
+}
+.history-turn{
+  margin-left:auto;
+  margin-right:auto;
+}
+.side-section{
+  padding:14px;
+}
+.side-row{
+  display:grid;
+  grid-template-columns:72px minmax(0,1fr);
+}
+.side-row .label{width:auto}
+.side-row .value{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+#event-log{
+  max-height:220px;
+  overflow:auto;
+}
+#side-todos{
+  max-height:240px;
+  overflow:auto;
+}
+#session-list{
+  max-height:300px;
+  overflow:auto;
+  padding-right:2px;
+}
+.file-preview-empty{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.6;
+}
+.file-preview-item{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 12px 28px rgba(22,36,43,.07);
+  margin-bottom:12px;
+  overflow:hidden;
+}
+.file-preview-head{
+  padding:10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  border-bottom:1px solid var(--line);
+}
+.file-preview-title{
+  min-width:0;
+  font-weight:800;
+  color:var(--ink);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.file-preview-meta{
+  flex-shrink:0;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+}
+.file-diff-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:0;
+}
+.file-diff-col{
+  min-width:0;
+  border-right:1px solid var(--line);
+}
+.file-diff-col:last-child{border-right:0}
+.file-diff-label{
+  padding:6px 8px;
+  background:var(--soft);
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  border-bottom:1px solid var(--line);
+}
+.file-diff-lines{
+  margin:0;
+  padding:8px;
+  min-height:70px;
+  max-height:300px;
+  overflow:auto;
+  white-space:pre-wrap;
+  word-break:break-word;
+  font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  color:#41535c;
+  background:#fff;
+}
+.file-diff-lines.added{background:rgba(15,123,117,.055)}
+.file-diff-lines.removed{background:rgba(200,75,49,.055)}
+#user-input-modal{
+  inset:auto 0 78px 0;
+  height:auto;
+  min-height:0;
+  padding:0 clamp(18px,4vw,64px);
+  background:transparent;
+  backdrop-filter:none;
+  align-items:flex-end;
+  justify-content:center;
+  pointer-events:none;
+}
+#user-input-modal.open{display:flex}
+#user-input-modal .modal-box{
+  width:min(760px,100%);
+  max-width:none;
+  max-height:min(54vh,460px);
+  overflow:auto;
+  padding:16px;
+  border-radius:8px;
+  pointer-events:auto;
+  box-shadow:0 18px 42px rgba(18,36,43,.2);
+}
+#user-input-modal h2{
+  margin-bottom:10px;
+  font-size:15px;
+}
+#user-input-modal .field{
+  margin-bottom:10px;
+}
+#user-input-modal .field-value{
+  max-height:110px;
+  overflow:auto;
+  word-break:break-word;
+}
+#user-input-modal .modal-textarea{
+  min-height:92px;
+}
+#input-area{
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr) auto;
+  align-items:center;
+}
+#task-input{
+  min-width:0;
+  width:100%;
+}
+@media(max-width:1180px){
+  #main{
+    grid-template-columns:minmax(0,1fr) 320px;
+  }
+  #file-preview{
+    grid-column:1 / -1;
+    border-right:0;
+    border-bottom:1px solid var(--line);
+    max-height:300px;
+  }
+  #events{
+    padding-left:24px;
+    padding-right:24px;
+  }
+  #sidebar{padding:14px}
+}
+@media(max-width:980px){
+  #main{
+    display:flex;
+    flex-direction:column;
+  }
+  #file-preview{
+    width:100%;
+    max-height:260px;
+    border-right:0;
+    border-bottom:1px solid var(--line);
+  }
+  #sidebar{
+    order:-1;
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:start;
+    border-left:0;
+    border-bottom:1px solid var(--line);
+  }
+  #event-log,
+  #side-todos,
+  #session-list{
+    max-height:180px;
+  }
+}
+@media(max-width:700px){
+  #sidebar{
+    display:none;
+  }
+  #file-preview{
+    padding:12px;
+  }
+  .file-diff-grid{
+    grid-template-columns:1fr;
+  }
+  .file-diff-col{
+    border-right:0;
+    border-bottom:1px solid var(--line);
+  }
+  #events{
+    padding:12px;
+  }
+  .turn-group{
+    border-radius:8px;
+  }
+  .progress-card,
+  .user-msg-wrap,
+  .assistant-msg-wrap,
+  .turn-events{
+    margin-left:0;
+    margin-right:0;
+    padding-left:12px;
+    padding-right:12px;
+  }
+  #input-area{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+  #input-area .prompt{
+    display:none;
+  }
+  #user-input-modal{
+    bottom:76px;
+    padding:0 12px;
+  }
+  #user-input-modal .modal-box{
+    max-height:56vh;
+    padding:14px;
+  }
+}
+@media(max-width:460px){
+  #header{
+    gap:8px;
+  }
+  #header .logo{
+    width:36px;
+    height:36px;
+  }
+  #header .title{
+    font-size:16px;
+  }
+  .header-action{
+    order:3;
+    width:100%;
+    margin-left:0;
+  }
+  #header .status-badge{
+    margin-left:auto;
+  }
+  #input-area{
+    grid-template-columns:1fr;
+  }
+  #send-btn{
+    width:100%;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header id="header">
+  <span class="logo">MC</span>
+  <span class="title">Exelixi</span>
+  <span class="sub">Agent 工作台</span>
+  <button class="header-action" id="new-session-btn" type="button">新会话</button>
+  <span class="status-badge disconnected" id="status-badge">未连接</span>
+</header>
+
+<!-- Session bar -->
+<div id="session-bar"><span class="sb-label">Session:</span><span class="sb-value" id="session-id-display">—</span></div>
+
+<!-- Main -->
+<div id="main">
+  <aside id="file-preview">
+    <div class="side-section">
+      <h3>文件预览</h3>
+      <div id="file-preview-list">
+        <div class="file-preview-empty">生成文件或修改文件后，会在这里显示对照。</div>
+      </div>
+    </div>
+  </aside>
+  <div id="events">
+    <div class="empty-state" id="empty-state">
+      <div class="big">MC</div>
+      <div class="title">准备接收任务</div>
+      <div class="hint">
+        输入一个目标后，执行过程会在这里展开。
+      </div>
+    </div>
+  </div>
+  <aside id="sidebar">
+    <div class="side-section">
+      <h3>当前会话</h3>
+      <div class="side-row"><span class="label">状态</span><span class="value" id="side-status">未连接</span></div>
+      <div class="side-row"><span class="label">轮次</span><span class="value" id="side-turn">0</span></div>
+      <div class="side-row"><span class="label">Session</span><span class="value" id="side-session">—</span></div>
+      <div class="side-row"><span class="label">工作区</span><span class="value" id="side-workspace">—</span></div>
+      <div class="side-row"><span class="label">路由</span><span class="value" id="side-route">—</span></div>
+    </div>
+    <div class="side-section">
+      <h3>会话列表</h3>
+      <div id="session-list" class="session-list"><div class="empty-inline">加载中…</div></div>
+    </div>
+    <div class="side-section">
+      <h3>本轮统计</h3>
+      <div class="side-row"><span class="label">工具调用</span><span class="value" id="side-tools">0</span></div>
+      <div class="side-row"><span class="label">失败</span><span class="value" id="side-failed">0</span></div>
+      <div class="side-row"><span class="label">审批</span><span class="value" id="side-approvals">0</span></div>
+      <div class="side-row"><span class="label">Checkpoint</span><span class="value cyan" id="side-checkpoint">—</span></div>
+    </div>
+    <div class="side-section">
+      <h3>Todos</h3>
+      <div id="side-todos"><div style="color:#6a7276;font-size:12px">(暂无)</div></div>
+    </div>
+    <div class="side-section" id="event-log">
+      <h3>事件日志</h3>
+      <div id="log-entries"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Input -->
+<footer id="input-area">
+  <span class="prompt">❯</span>
+  <input type="text" id="task-input" placeholder="输入任务或继续追问" autofocus>
+  <button id="send-btn" disabled>发送</button>
+</footer>
+
+<!-- Approval Modal -->
+<div class="modal-overlay" id="approval-modal">
+  <div class="modal-box">
+    <h2>⚠️ 需要审批</h2>
+    <div class="field">
+      <div class="field-label">工具</div>
+      <div class="field-value" id="approval-tool">BashTool</div>
+    </div>
+    <div class="field">
+      <div class="field-label">命令</div>
+      <div class="field-value" id="approval-command"></div>
+    </div>
+    <div class="field">
+      <div class="field-label">风险原因</div>
+      <div class="field-value" id="approval-risk"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-reject" id="btn-reject">✕ 拒绝</button>
+      <button class="btn-approve" id="btn-approve">✓ 批准</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Input Modal -->
+<div class="modal-overlay" id="user-input-modal">
+  <div class="modal-box">
+    <h2>需要补充信息</h2>
+    <div class="field">
+      <div class="field-label">问题</div>
+      <div class="field-value" id="user-input-question"></div>
+    </div>
+    <div class="field">
+      <div class="field-label">上下文</div>
+      <div class="field-value" id="user-input-context"></div>
+    </div>
+    <div class="field">
+      <div class="field-label">回复</div>
+      <textarea class="modal-textarea" id="user-input-answer" placeholder="输入补充信息"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-reject" id="btn-user-cancel">取消</button>
+      <button class="btn-approve" id="btn-user-submit">提交</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────
+const state = {
+  ws: null,
+  connected: false,
+  running: false,
+  turn: 0,
+  sessionId: '',
+  workspace: '',
+  route: '',
+  toolCalls: 0,
+  failedTools: 0,
+  approvals: 0,
+  checkpoint: '',
+  todos: [],
+  filePreviews: [],
+  sessions: [],
+  freshSessionRequested: false,
+  internalEvents: 0,
+  lastPlanSummary: '',
+  approvalPending: null,
+  userInputPending: null,
+  currentTurnEl: null,    // DOM element for the current turn group
+  currentEventsEl: null,  // events container inside current turn
+  currentProgressEl: null,
+  currentInternalBodyEl: null,
+};
+
+// ── DOM refs ────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const eventsEl = $('events');
+const emptyState = $('empty-state');
+const sessionBar = $('session-bar');
+const sessionIdDisplay = $('session-id-display');
+const filePreviewList = $('file-preview-list');
+const taskInput = $('task-input');
+const sendBtn = $('send-btn');
+const statusBadge = $('status-badge');
+const sessionListEl = $('session-list');
+
+// ── Connection ──────────────────────────────────────────────────────────
+function connect() {
+  if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}/ws`;
+  setStatus('connecting');
+  const ws = new WebSocket(url);
+  state.ws = ws;
+
+  ws.onopen = () => {
+    state.connected = true;
+    setStatus('connected');
+    sendBtn.disabled = false;
+    taskInput.disabled = false;
+    taskInput.focus();
+    loadSessions();
+  };
+
+  ws.onclose = () => {
+    state.connected = false;
+    state.running = false;
+    setStatus('disconnected');
+    sendBtn.disabled = true;
+    taskInput.disabled = true;
+    setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => { ws.close(); };
+
+  ws.onmessage = (msg) => {
+    try {
+      handleEvent(JSON.parse(msg.data));
+    } catch (e) {
+      console.warn('bad message', msg.data);
+    }
+  };
+}
+
+function setStatus(status) {
+  const labels = { connecting: '连接中…', connected: '已连接', disconnected: '未连接', running: '运行中' };
+  statusBadge.className = 'status-badge ' + status;
+  statusBadge.textContent = labels[status] || status;
+  document.getElementById('side-status').textContent = labels[status] || status;
+}
+
+// ── Turn Management ─────────────────────────────────────────────────────
+function beginTurn(task) {
+  state.turn++;
+  state.route = '';
+  state.toolCalls = 0;
+  state.failedTools = 0;
+  state.approvals = 0;
+  state.checkpoint = '';
+  state.todos = [];
+  state.filePreviews = [];
+  state.internalEvents = 0;
+  state.lastPlanSummary = '';
+  state.currentInternalBodyEl = null;
+  updateSidebar();
+  updateFilePreview();
+
+  // Remove empty state
+  if (emptyState && emptyState.parentNode) emptyState.remove();
+
+  // Create turn group
+  const time = new Date().toLocaleTimeString();
+  const turnDiv = document.createElement('div');
+  turnDiv.className = 'turn-group';
+  turnDiv.dataset.turn = state.turn;
+  turnDiv.innerHTML = `
+    <div class="turn-header">
+      <span class="turn-dot active"></span>
+      <span class="turn-label">第 ${state.turn} 轮</span>
+      <span class="turn-time">${time}</span>
+      <span class="turn-route"></span>
+    </div>
+    <div class="user-msg-wrap">
+      <div class="avatar">U</div>
+      <div class="bubble">
+        ${escapeHtml(task)}
+        <div class="msg-meta">
+          <span>${time}</span>
+          <span class="turn-ctx"></span>
+        </div>
+      </div>
+    </div>
+    <div class="progress-card">
+      <div class="progress-title">
+        <span>任务进度</span>
+        <span class="progress-count">内部 0</span>
+      </div>
+      <div class="progress-detail">任务已提交，正在判断处理方式。</div>
+      <div class="progress-steps">
+        <span class="progress-step active" data-step="route">路由</span>
+        <span class="progress-step" data-step="plan">计划</span>
+        <span class="progress-step" data-step="work">执行</span>
+        <span class="progress-step" data-step="verify">验证</span>
+        <span class="progress-step" data-step="final">输出</span>
+      </div>
+    </div>
+    <div class="turn-events"></div>
+  `;
+
+  eventsEl.appendChild(turnDiv);
+  eventsEl.scrollTop = eventsEl.scrollHeight;
+
+  state.currentTurnEl = turnDiv;
+  state.currentEventsEl = turnDiv.querySelector('.turn-events');
+  state.currentProgressEl = turnDiv.querySelector('.progress-card');
+}
+
+function endTurn(status = 'finished') {
+  if (!state.currentTurnEl) return;
+
+  // Update header dot
+  const dot = state.currentTurnEl.querySelector('.turn-dot');
+  if (dot) {
+    dot.classList.remove('active');
+    dot.classList.add('done');
+    if (status !== 'finished') dot.style.background = '#ef6f6c';
+  }
+
+  // Update route display
+  const routeEl = state.currentTurnEl.querySelector('.turn-route');
+  if (routeEl && state.route) {
+    routeEl.textContent = state.route;
+  }
+
+  // Add turn footer
+  const footer = document.createElement('div');
+  footer.className = 'turn-footer';
+  const statusText = status === 'finished' ? '完成' : status;
+  footer.innerHTML = `<span class="dot ${status === 'finished' ? 'done' : 'fail'}"></span> ${statusText}`;
+  state.currentTurnEl.appendChild(footer);
+
+  eventsEl.scrollTop = eventsEl.scrollHeight;
+}
+
+function beginNewSession() {
+  state.freshSessionRequested = true;
+  clearConversation({ showEmpty: true });
+
+  // Create a visual separator
+  const sep = document.createElement('div');
+  sep.className = 'session-separator';
+  sep.textContent = '新会话';
+  if (emptyState && emptyState.parentNode) {
+    eventsEl.insertBefore(sep, emptyState);
+  } else {
+    eventsEl.appendChild(sep);
+  }
+
+  // Reset state
+  state.sessionId = '';
+  state.workspace = '';
+  state.turn = 0;
+  state.route = '';
+  state.toolCalls = 0;
+  state.failedTools = 0;
+  state.approvals = 0;
+  state.checkpoint = '';
+  state.todos = [];
+  state.filePreviews = [];
+  state.currentTurnEl = null;
+  state.currentEventsEl = null;
+  updateSidebar();
+  updateFilePreview();
+  renderSessionList();
+  sessionBar.classList.remove('show');
+}
+
+// ── Run Command ─────────────────────────────────────────────────────────
+function sendRun(task) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+
+  if (task === '/new') {
+    beginNewSession();
+    return;
+  }
+
+  state.running = true;
+  state.freshSessionRequested = false;
+  setStatus('running');
+  sendBtn.disabled = true;
+  taskInput.disabled = true;
+
+  beginTurn(task);
+
+  state.ws.send(JSON.stringify({
+    type: 'run',
+    task: task,
+    workspace: state.workspace || undefined,
+    approval_mode: 'inline',
+    checkpoint_mode: 'light',
+    trace_mode: 'on',
+  }));
+}
+
+// ── Event Handling ──────────────────────────────────────────────────────
+function handleEvent(data) {
+  const type = data.type;
+
+  if (type === 'workspace') {
+    state.workspace = data.path || '';
+    updateSidebar();
+    return;
+  }
+
+  if (type === '__ready__') {
+    state.running = false;
+    setStatus('connected');
+    sendBtn.disabled = false;
+    taskInput.disabled = false;
+    taskInput.focus();
+    loadSessions();
+    return;
+  }
+
+  if (type === 'approval_request') {
+    showApprovalModal(data);
+    return;
+  }
+
+  if (type === 'user_input_request') {
+    showUserInputModal(data);
+    return;
+  }
+
+  if (type === 'error') {
+    addEventCard('error', 'Error', { body: data.message || '', icon: '!' });
+    return;
+  }
+
+  if (type === '__done__') {
+    const status = data.status || 'finished';
+    endTurn(status);
+    state.running = false;
+    return;
+  }
+
+  if (type === 'graph_event') {
+    handleGraphEvent(data.event || data);
+    return;
+  }
+
+  if (type === 'custom_event') {
+    handleCustomEvent(data.event || data);
+    return;
+  }
+
+  addEventCard('event', 'Event', { body: JSON.stringify(data, null, 2), icon: '·' });
+}
+
+function handleGraphEvent(payload) {
+  if (!payload || typeof payload !== 'object') return;
+  const node = Object.keys(payload)[0];
+  const update = payload[node];
+  if (!update || typeof update !== 'object') return;
+
+  switch (node) {
+    case 'planner': renderPlan(update); break;
+    case 'codeAgent': case 'actor': renderAgentSummary(node, update); break;
+    case 'verifier': renderVerifier(update); break;
+    case 'final': renderFinal(update); break;
+    case 'context_monitor': renderContextMonitor(update); break;
+    case 'context_compressor': renderContextCompression(update); break;
+    case 'memory_snapshot': renderMemorySnapshot(update); break;
+    default: addEventCard('event', node, { body: JSON.stringify(update, null, 2), icon: '·', internal: true });
+  }
+
+  if (update.todos) state.todos = update.todos;
+  updateSidebar();
+}
+
+function handleCustomEvent(event) {
+  if (!event || typeof event !== 'object') return;
+  const et = event.type;
+
+  switch (et) {
+    case 'intent_decision': {
+      const route = event.route || 'workflow';
+      updateRouteDisplay(route);
+      updateProgress('route', route === 'chat' ? '进入轻量对话。' : '进入工作流，准备规划任务。');
+      addEventCard('intent', `路由判断 · ${route}`, {
+        body: `Route: ${route}\nConfidence: ${event.confidence || 0}\nReason: ${(event.reason || '').slice(0, 600)}`,
+        icon: route === 'chat' ? '💬' : '⚙',
+        collapsed: true,
+      });
+      break;
+    }
+    case 'chat_response': {
+      const resp = event.response || '';
+      updateProgress('final', '已生成回复。');
+      addAssistantMessage(resp);
+      addEventCard('chat', 'Exelixi', {
+        body: `${resp}\n\nmode: ${event.mode || 'lightweight'} | reason: ${event.reason || ''}`,
+        icon: '💬', collapsed: true, internal: true,
+      });
+      break;
+    }
+    case 'session_started': {
+      state.sessionId = event.session_id || '';
+      state.turn = event.turn_index || 0;
+      state.workspace = event.workspace || state.workspace;
+      updateSidebar();
+      renderSessionList();
+      // Show session bar
+      sessionIdDisplay.textContent = event.session_id || '—';
+      sessionBar.classList.add('show');
+      break;
+    }
+    case 'session_turn_started': {
+      state.turn = event.turn || state.turn;
+      updateSidebar();
+      updateCurrentTurnLabel();
+      break;
+    }
+    case 'session_turn_saved': {
+      state.route = event.route || state.route;
+      updateSidebar();
+      updateRouteDisplay(state.route);
+      updateCurrentTurnLabel();
+      updateProgress('final', '结果已保存，正在刷新对话。');
+      loadSessions({ refreshActive: true });
+      break;
+    }
+    case 'plan_snapshot': case 'todo_update': {
+      if (event.todos) state.todos = event.todos;
+      updateSidebar();
+      if (et === 'plan_snapshot') {
+        const summary = event.plan_summary || '计划已更新。';
+        updateProgress('plan', summary);
+        const hasTodos = Array.isArray(event.todos) && event.todos.length > 0;
+        if (summary === state.lastPlanSummary || !hasTodos) {
+          addInternalEvent('📋', '计划快照', buildPlanBody(event));
+          break;
+        }
+        state.lastPlanSummary = summary;
+      } else {
+        updateProgress('work', '任务清单已更新。');
+      }
+      addEventCard('plan', et === 'plan_snapshot' ? '计划快照' : 'Todo 更新', {
+        body: buildPlanBody(event),
+        icon: '📋',
+        collapsed: et !== 'plan_snapshot',
+        internal: et === 'todo_update',
+      });
+      break;
+    }
+    case 'tool_call': {
+      state.toolCalls++;
+      updateSidebar();
+      updateProgress('work', `正在执行：${event.name || 'tool'}`);
+      addEventCard('tool_call', `${event.node || 'agent'} · ${event.name || 'tool'}`, {
+        body: formatToolArgs(event.name || '', event.args), icon: '🔧',
+      });
+      break;
+    }
+    case 'tool_result': {
+      const result = event.result || {};
+      const ok = result.ok !== false;
+      if (!ok) state.failedTools++;
+      updateSidebar();
+      captureFilePreview(event.name || '', result);
+      updateProgress(ok ? 'work' : 'verify', ok ? `完成：${event.name || 'tool'}` : `失败：${event.name || 'tool'}`);
+      addEventCard(ok ? 'tool_result' : 'tool_result-error', `工具返回 · ${event.name || 'tool'}`, {
+        body: formatToolResult(result), icon: ok ? '✓' : '✕',
+      });
+      break;
+    }
+    case 'handoff': {
+      updateProgress('work', `${event.to || 'agent'} 正在处理任务。`);
+      addEventCard('handoff', `交接 · ${event.from || 'agent'} → ${event.to || 'agent'}`, {
+        body: (event.task || event.instruction || '').slice(0, 500), icon: '↪',
+      });
+      break;
+    }
+    case 'handoff_result': {
+      updateProgress('work', `${event.from || 'agent'} 已返回结果。`);
+      addEventCard('handoff', `返回 · ${event.from || 'agent'}`, {
+        body: (event.summary || event.result || '').slice(0, 600), icon: '↩',
+      });
+      break;
+    }
+    case 'search_results': case 'search_summary': {
+      const sources = Array.isArray(event.sources) ? event.sources : [];
+      const answer = event.answer || event.summary || '';
+      addEventCard('search', '搜索结果', {
+        body: `${answer.slice(0, 500)}\n\n来源: ${sources.length}\n${
+          sources.slice(0, 5).map((s, i) => `${i+1}. ${s.title || '—'} ${s.url || ''}`).join('\n')
+        }`, icon: '🔍',
+      });
+      break;
+    }
+    case 'memory_snapshot': {
+      const layers = event.layers || {};
+      addEventCard('memory', '记忆快照', {
+        body: `规则: ${shrink(layers.rules, 180)}\n工作记忆: ${shrink(layers.working_memory, 220)}\n历史: ${shrink(layers.history_summary_store, 220)}\ntodos=${event.todo_count||0} sources=${event.source_count||0}`,
+        icon: '🧠',
+      });
+      break;
+    }
+    case 'context_monitor': {
+      const tokens = event.context_token_count ?? event.token_count ?? 0;
+      const limit = event.context_token_limit ?? event.token_limit ?? 0;
+      const compress = event.context_should_compress ?? event.should_compress ?? false;
+      updateProgress(event.context_next_node || 'verify', compress ? '上下文较大，准备压缩。' : '检查上下文并进入下一步。');
+      addEventCard('context', '上下文监视', {
+        body: `Tokens: ${tokens} / ${limit}\nCompress: ${compress}`, icon: compress ? '⚠' : '📊',
+      });
+      break;
+    }
+    case 'context_compression': {
+      const comps = Array.isArray(event.compression_events) ? event.compression_events : [event];
+      const last = comps[comps.length - 1];
+      addEventCard('context', '上下文压缩', {
+        body: `Tokens: ${last.before_tokens} → ${last.after_tokens}\nRemoved: ${last.removed_messages}\n${shrink(last.summary, 500)}`,
+        icon: '🗜',
+      });
+      break;
+    }
+    case 'checkpoint_saved': {
+      state.checkpoint = event.path || '';
+      updateSidebar();
+      addEventCard('checkpoint', '检查点已保存', {
+        body: `Status: ${event.status}\nPath: ${event.path}\n${event.resume_command || ''}`, icon: '💾',
+      });
+      break;
+    }
+    case 'checkpoint_resumed': {
+      addEventCard('checkpoint', '检查点已恢复', {
+        body: `Workspace: ${event.workspace}\nFallback: ${event.fallback}`, icon: '📂',
+      });
+      break;
+    }
+    case 'trace_summary': {
+      const nodes = event.node_visits || {};
+      const nodeText = Object.entries(nodes).map(([k, v]) => `${k}:${v}`).join(', ') || '(none)';
+      updateProgress('final', `工作流${event.status || 'finished'}。`);
+      addEventCard('trace', '运行摘要', {
+        body: `Trace: ${event.trace_id}\nStatus: ${event.status}\nNodes: ${nodeText}\nTools: ${event.tool_calls||0} / ${event.failed_tool_calls||0} failed`,
+        icon: '📋', collapsed: true, internal: true,
+      });
+      break;
+    }
+    default: {
+      if (['session_started','session_turn_started','memory_snapshot'].includes(et)) return;
+      addEventCard('event', et, { body: shrink(event, 1000), icon: '·' });
+    }
+  }
+}
+
+function updateRouteDisplay(route) {
+  if (!state.currentTurnEl) return;
+  const el = state.currentTurnEl.querySelector('.turn-route');
+  if (el) el.textContent = route === 'workflow' ? '工作流' : route === 'chat' ? '对话' : route;
+}
+
+function updateCurrentTurnLabel() {
+  if (!state.currentTurnEl || !state.turn) return;
+  const el = state.currentTurnEl.querySelector('.turn-label');
+  if (el) el.textContent = `第 ${state.turn} 轮`;
+  state.currentTurnEl.dataset.turn = state.turn;
+}
+
+function updateProgress(stage, detail = '') {
+  if (!state.currentProgressEl) return;
+  const aliases = {
+    planner: 'plan',
+    verifier: 'verify',
+    final: 'final',
+    codeAgent: 'work',
+    actor: 'work',
+    context_monitor: 'verify',
+    context_compressor: 'verify',
+  };
+  stage = aliases[stage] || stage;
+  const order = ['route', 'plan', 'work', 'verify', 'final'];
+  const activeIndex = Math.max(0, order.indexOf(stage));
+  state.currentProgressEl.querySelectorAll('.progress-step').forEach(step => {
+    const idx = order.indexOf(step.dataset.step);
+    step.classList.toggle('done', idx < activeIndex);
+    step.classList.toggle('active', idx === activeIndex);
+  });
+  const detailEl = state.currentProgressEl.querySelector('.progress-detail');
+  if (detailEl && detail) detailEl.textContent = detail;
+  const countEl = state.currentProgressEl.querySelector('.progress-count');
+  if (countEl) countEl.textContent = `内部 ${state.internalEvents}`;
+}
+
+function addAssistantMessage(content) {
+  if (!state.currentTurnEl || !content) return;
+  let wrap = state.currentTurnEl.querySelector('.assistant-msg-wrap.final-answer');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'assistant-msg-wrap final-answer';
+    wrap.innerHTML = '<div class="avatar">AI</div><div class="bubble"></div>';
+    state.currentTurnEl.appendChild(wrap);
+  }
+  const bubble = wrap.querySelector('.bubble');
+  bubble.classList.add('markdown-body');
+  bubble.innerHTML = renderMarkdown(content);
+  eventsEl.scrollTop = eventsEl.scrollHeight;
+}
+
+// ── Renderers ───────────────────────────────────────────────────────────
+function renderPlan(update) {
+  updateProgress('plan', update.plan_summary || '规划已生成。');
+  addEventCard('plan', '规划器', { body: buildPlanBody(update), icon: '📋', collapsed: false });
+}
+function renderAgentSummary(node, update) {
+  updateProgress('work', `${node} 已完成阶段性工作。`);
+  const summary = update.code_agent_summary || update.last_actor_summary || JSON.stringify(update);
+  addEventCard('agent', `${node} 摘要`, { body: shrink(summary, 1200), icon: '🤖' });
+}
+function renderVerifier(update) {
+  updateProgress('verify', update.passed ? '验证通过。' : '验证未通过，准备修复。');
+  const passed = update.passed;
+  const checks = Array.isArray(update.verification_checks) ? update.verification_checks : [];
+  const lines = [];
+  if (update.verifier_summary) lines.push(update.verifier_summary.slice(0, 500));
+  for (const c of checks.slice(0, 8)) {
+    lines.push(`${c.passed ? '✅ PASS' : '❌ FAIL'}: ${c.name} — ${shrink(c.detail, 160)}`);
+  }
+  lines.push(`passed=${passed} | attempts=${update.attempts}`);
+  addEventCard(passed ? 'verifier' : 'verifier-fail', '验证器', { body: lines.join('\n'), icon: passed ? '✅' : '❌', collapsed: false });
+}
+function renderFinal(update) {
+  const answer = update.final_answer || JSON.stringify(update);
+  updateProgress('final', '最终结果已生成。');
+  addAssistantMessage(answer);
+  addEventCard('final', '最终结果', { body: shrink(answer, 2000), icon: '✅', collapsed: false });
+}
+function renderContextMonitor(update) {
+  const tokens = update.context_token_count ?? update.token_count ?? 0;
+  const limit = update.context_token_limit ?? update.token_limit ?? 0;
+  const compress = update.context_should_compress ?? update.should_compress ?? false;
+  updateProgress(update.context_next_node || 'verify', compress ? '上下文较大，准备压缩。' : '检查上下文并进入下一步。');
+  addEventCard('context', '上下文监视', { body: `Tokens: ${tokens} / ${limit}\nCompress: ${compress}`, icon: compress ? '⚠' : '📊' });
+}
+function renderContextCompression(update) {
+  const comps = Array.isArray(update.compression_events) ? update.compression_events : [update];
+  const last = comps[comps.length - 1];
+  updateProgress('verify', '上下文已压缩，继续验证。');
+  addEventCard('context', '上下文压缩', { body: `Tokens: ${last.before_tokens} → ${last.after_tokens}\nRemoved: ${last.removed_messages}\n${shrink(last.summary, 500)}`, icon: '🗜' });
+}
+function renderMemorySnapshot(update) {
+  const layers = update.layers || {};
+  addEventCard('memory', '记忆快照', { body: `规则: ${shrink(layers.rules, 180)}\n工作记忆: ${shrink(layers.working_memory, 220)}\n历史: ${shrink(layers.history_summary_store, 220)}\ntodos=${update.todo_count||0}`, icon: '🧠' });
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+function buildPlanBody(update) {
+  const lines = [];
+  if (update.plan_summary) lines.push(update.plan_summary.slice(0, 500));
+  const todos = Array.isArray(update.todos) ? update.todos : [];
+  if (todos.length) {
+    const counts = {};
+    todos.forEach(t => { const s = t.status || 'pending'; counts[s] = (counts[s]||0) + 1; });
+    lines.push(`Todos: ${Object.entries(counts).map(([k,v]) => `${k}:${v}`).join(', ')}`);
+    todos.slice(0, 8).forEach(t => {
+      lines.push(`  ${t.status === 'completed' ? '✅' : t.status === 'in_progress' ? '🔄' : '⬜'} ${t.content || t.description || ''}`);
+    });
+    if (todos.length > 8) lines.push(`  … ${todos.length - 8} more`);
+  }
+  return lines.join('\n');
+}
+function formatArgs(args) {
+  if (!args) return '(无参数)';
+  if (typeof args === 'string') return shrink(args, 900);
+  return shrink(JSON.stringify(args, null, 2), 900);
+}
+function formatToolArgs(toolName, args) {
+  if (isFileMutationTool(toolName) && args && typeof args === 'object') {
+    const fileName = String(args.file_path || args.path || '').split(/[\\/]/).pop() || '(unknown)';
+    const action = toolName === 'FileWriteTool' ? '准备写入文件' : '准备修改文件';
+    const lines = [`${action}: ${fileName}`];
+    if (toolName === 'FileEditTool') lines.push('变更内容将在左侧文件预览显示');
+    if (toolName === 'FileWriteTool') lines.push('文件内容将在左侧文件预览显示');
+    return lines.join('\n');
+  }
+  return formatArgs(args);
+}
+function formatToolResult(result) {
+  if (!result || typeof result !== 'object') return shrink(result, 700);
+  if (isFileMutationResult(result)) {
+    const fileName = String(result.path || '').split(/[\\/]/).pop() || String(result.path || 'file');
+    const action = result.type === 'create' ? '生成文件' : '修改文件';
+    const lines = [
+      `ok: ${result.ok !== false}`,
+      `${action}: ${fileName}`,
+    ];
+    if (result.lines !== undefined) lines.push(`lines: ${result.lines}`);
+    if (result.replacements !== undefined) lines.push(`replacements: ${result.replacements}`);
+    if (result.error) lines.push(`error: ${result.error}`);
+    if (result.diff) lines.push('diff: 已移至左侧文件预览');
+    return lines.join('\n');
+  }
+  const keys = ['ok','exit_code','timed_out','duration_ms','error','path','stdout_path'];
+  const lines = keys.filter(k => k in result).map(k => `${k}: ${result[k]}`);
+  if (result.stdout) lines.push('stdout:\n' + shrink(result.stdout, 500));
+  if (result.stderr) lines.push('stderr:\n' + shrink(result.stderr, 500));
+  return lines.join('\n') || shrink(result, 700);
+}
+function isFileMutationTool(toolName) {
+  return toolName === 'FileWriteTool' || toolName === 'FileEditTool';
+}
+function isFileMutationResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  return Boolean(result.diff && result.path && ('lines' in result || 'replacements' in result || result.type));
+}
+function captureFilePreview(toolName, result) {
+  if (!isFileMutationResult(result)) return;
+  const fileName = String(result.path || '').split(/[\\/]/).pop() || String(result.path || 'file');
+  const filePath = String(result.path || fileName);
+  const action = result.type === 'create' ? '生成' : '修改';
+  const parsed = parseUnifiedDiff(result.diff || '');
+  state.filePreviews.unshift({
+    toolName,
+    path: filePath,
+    fileName,
+    action,
+    meta: result.lines !== undefined ? `${result.lines} 行` : result.replacements !== undefined ? `${result.replacements} 处替换` : '',
+    before: parsed.before,
+    after: parsed.after,
+  });
+  state.filePreviews = state.filePreviews.slice(0, 12);
+  updateFilePreview();
+
+  // 通知父页面：文件已创建/修改（用于中栏浮动预览）
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'preview-file',
+        name: fileName,
+        path: filePath,
+        content: parsed.after,
+        action: action,
+      }, window.location.origin);
+      // 如果文件在 Agent_strategy/ 目录下，发送策略创建通知
+      if (filePath.includes('Agent_strategy') && action === '生成') {
+        window.parent.postMessage({
+          type: 'strategy-created',
+          name: fileName,
+          path: filePath,
+        }, window.location.origin);
+      }
+    }
+  } catch (_) { /* 跨域时静默 */ }
+}
+function parseUnifiedDiff(diff) {
+  const before = [];
+  const after = [];
+  const lines = String(diff || '').split('\n');
+  for (const line of lines) {
+    if (!line || line.startsWith('---') || line.startsWith('+++') || line.startsWith('@@')) continue;
+    if (line.startsWith('-')) {
+      before.push(line.slice(1));
+    } else if (line.startsWith('+')) {
+      after.push(line.slice(1));
+    } else if (line.startsWith(' ')) {
+      before.push(line.slice(1));
+      after.push(line.slice(1));
+    }
+  }
+  return {
+    before: before.join('\n') || '(新建文件)',
+    after: after.join('\n') || '(无新内容)',
+  };
+}
+function updateFilePreview() {
+  if (!filePreviewList) return;
+  if (!state.filePreviews.length) {
+    filePreviewList.innerHTML = '<div class="file-preview-empty">生成文件或修改文件后，会在这里显示对照。</div>';
+    return;
+  }
+  filePreviewList.innerHTML = state.filePreviews.map(item => `
+    <div class="file-preview-item">
+      <div class="file-preview-head">
+        <div class="file-preview-title" title="${escapeAttr(item.path)}">${escapeHtml(item.fileName)}</div>
+        <div class="file-preview-meta">${escapeHtml(item.action)}${item.meta ? ' · ' + escapeHtml(item.meta) : ''}</div>
+      </div>
+      <div class="file-diff-grid">
+        <div class="file-diff-col">
+          <div class="file-diff-label">修改前</div>
+          <pre class="file-diff-lines removed">${escapeHtml(item.before)}</pre>
+        </div>
+        <div class="file-diff-col">
+          <div class="file-diff-label">修改后</div>
+          <pre class="file-diff-lines added">${escapeHtml(item.after)}</pre>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+function shrink(value, limit = 260) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  return text.length <= limit ? text : text.slice(0, Math.max(0, limit - 3)) + '…';
+}
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function escapeAttr(str) { return escapeHtml(str).replace(/"/g, '&quot;'); }
+function safeUrl(url) {
+  const value = String(url || '').trim();
+  if (/^(https?:|mailto:)/i.test(value)) return value;
+  if (/^[./#]/.test(value)) return value;
+  return '#';
+}
+function renderInlineMarkdown(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  html = html.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+    const src = escapeAttr(safeUrl(url));
+    return `<img src="${src}" alt="${escapeAttr(alt)}" loading="lazy">`;
+  });
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+    const href = escapeAttr(safeUrl(url));
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  });
+  return html;
+}
+function renderMarkdown(markdown) {
+  const text = String(markdown || '').replace(/\r\n/g, '\n');
+  const blocks = [];
+  const stash = code => {
+    const id = `@@CODE${blocks.length}@@`;
+    blocks.push(code);
+    return id;
+  };
+  const withoutCode = text.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const cls = lang ? ` class="language-${escapeAttr(lang)}"` : '';
+    return stash(`<pre><code${cls}>${escapeHtml(code.replace(/\n$/, ''))}</code></pre>`);
+  });
+  const lines = withoutCode.split('\n');
+  const out = [];
+  let para = [];
+  let list = null;
+  const closePara = () => {
+    if (!para.length) return;
+    out.push(`<p>${renderInlineMarkdown(para.join(' '))}</p>`);
+    para = [];
+  };
+  const closeList = () => {
+    if (!list) return;
+    out.push(`<${list.type}>${list.items.map(item => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</${list.type}>`);
+    list = null;
+  };
+
+  for (const line of lines) {
+    if (/^@@CODE\d+@@$/.test(line.trim())) {
+      closePara(); closeList();
+      const idx = Number(line.trim().match(/\d+/)[0]);
+      out.push(blocks[idx]);
+      continue;
+    }
+    if (!line.trim()) {
+      closePara(); closeList();
+      continue;
+    }
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      closePara(); closeList();
+      const level = heading[1].length;
+      out.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+      continue;
+    }
+    const quote = line.match(/^>\s+(.+)$/);
+    if (quote) {
+      closePara(); closeList();
+      out.push(`<blockquote>${renderInlineMarkdown(quote[1])}</blockquote>`);
+      continue;
+    }
+    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
+    const ordered = line.match(/^\s*\d+\.\s+(.+)$/);
+    if (bullet || ordered) {
+      closePara();
+      const type = bullet ? 'ul' : 'ol';
+      if (!list || list.type !== type) closeList();
+      if (!list) list = { type, items: [] };
+      list.items.push((bullet || ordered)[1]);
+      continue;
+    }
+    para.push(line.trim());
+  }
+  closePara(); closeList();
+  return out.join('');
+}
+
+// ── DOM: Add Event Card to Current Turn ─────────────────────────────────
+function addEventCard(type, title, opts = {}) {
+  const { body = '', icon = '·' } = opts;
+  if (!state.currentEventsEl) return;
+
+  const internal = opts.internal ?? isInternalEvent(type, title);
+  if (internal && !opts.forceVisible) {
+    addInternalEvent(icon, title, body);
+    return;
+  }
+  const collapsed = opts.collapsed ?? defaultCollapsed(type, internal);
+  const time = new Date().toLocaleTimeString();
+  const typeClass = 'type-' + type;
+  const card = document.createElement('div');
+  card.className = `event-card ${typeClass} ${internal ? 'internal' : 'visible'}`;
+  card.innerHTML = `
+    <div class="head">
+      <span class="icon">${icon}</span>
+      <span class="title">${escapeHtml(title)}</span>
+      ${internal ? '<span class="visibility-badge">内部</span>' : ''}
+      <span class="time">${time}</span>
+      <span class="expand">▶</span>
+    </div>
+    <div class="body">${escapeHtml(body)}</div>
+  `;
+
+  const head = card.querySelector('.head');
+  const bodyEl = card.querySelector('.body');
+  const expand = card.querySelector('.expand');
+  head.addEventListener('click', () => {
+    const isOpen = bodyEl.classList.toggle('open');
+    expand.classList.toggle('open', isOpen);
+  });
+  if (!collapsed) { bodyEl.classList.add('open'); expand.classList.add('open'); }
+
+  state.currentEventsEl.appendChild(card);
+  eventsEl.scrollTop = eventsEl.scrollHeight;
+
+  // sidebar log
+  addLogEntry(icon, title);
+}
+
+function addInternalEvent(icon, title, body = '') {
+  if (!state.currentEventsEl) return;
+  state.internalEvents++;
+  updateProgress(currentProgressStage(), currentProgressDetail());
+  if (!state.currentInternalBodyEl) {
+    const card = document.createElement('div');
+    card.className = 'event-card internal internal-bucket';
+    card.innerHTML = `
+      <div class="head">
+        <span class="icon">·</span>
+        <span class="title">内部流程</span>
+        <span class="visibility-badge">折叠</span>
+        <span class="time"></span>
+        <span class="expand">▶</span>
+      </div>
+      <div class="body"></div>
+    `;
+    const head = card.querySelector('.head');
+    const bodyEl = card.querySelector('.body');
+    const expand = card.querySelector('.expand');
+    const toggleWorkflow = () => {
+      const isOpen = bodyEl.classList.toggle('open');
+      expand.classList.toggle('open', isOpen);
+    };
+    head.addEventListener('click', toggleWorkflow);
+    state.currentEventsEl.appendChild(card);
+    state.currentInternalBodyEl = bodyEl;
+  }
+  const bucket = state.currentInternalBodyEl.closest('.event-card');
+  if (bucket) {
+    const titleEl = bucket.querySelector('.title');
+    const timeEl = bucket.querySelector('.time');
+    if (titleEl) titleEl.textContent = `内部流程 · ${state.internalEvents}`;
+    if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
+  }
+  const time = new Date().toLocaleTimeString();
+  const text = `${time} ${icon} ${title}${body ? '\n' + shrink(body, 280) : ''}`;
+  const line = document.createElement('div');
+  line.textContent = text;
+  state.currentInternalBodyEl.appendChild(line);
+  while (state.currentInternalBodyEl.children.length > 80) {
+    state.currentInternalBodyEl.removeChild(state.currentInternalBodyEl.firstChild);
+  }
+}
+
+function currentProgressStage() {
+  if (!state.currentProgressEl) return 'route';
+  const active = state.currentProgressEl.querySelector('.progress-step.active');
+  return active ? active.dataset.step : 'route';
+}
+
+function currentProgressDetail() {
+  if (!state.currentProgressEl) return '';
+  const detail = state.currentProgressEl.querySelector('.progress-detail');
+  return detail ? detail.textContent : '';
+}
+
+function isInternalEvent(type, title = '') {
+  const internalTypes = new Set([
+    'context',
+    'memory',
+    'checkpoint',
+    'trace',
+    'tool_call',
+    'tool_result',
+    'tool_result-error',
+    'session',
+    'workspace',
+  ]);
+  if (internalTypes.has(type)) return true;
+  return /上下文|记忆|检查点|Trace|checkpoint|memory|context/i.test(title);
+}
+
+function defaultCollapsed(type, internal) {
+  if (internal) return true;
+  return !['chat', 'final', 'verifier', 'verifier-fail', 'error'].includes(type);
+}
+
+let logCount = 0;
+function addLogEntry(icon, title) {
+  const el = document.getElementById('log-entries');
+  if (!el) return;
+  logCount++;
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="lt">${icon}</span> ${escapeHtml(title).slice(0, 50)}`;
+  el.appendChild(entry);
+  while (el.children.length > 80) el.removeChild(el.firstChild);
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.scrollTop = sidebar.scrollHeight;
+}
+
+// ── Conversation List ───────────────────────────────────────────────────
+async function loadSessions(options = {}) {
+  if (!sessionListEl) return;
+  try {
+    const resp = await fetch('/api/workspaces');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const sessions = await resp.json();
+    state.sessions = Array.isArray(sessions) ? sessions : [];
+    if (options.refreshActive && state.workspace) {
+      const active = state.sessions.find(item => item.path === state.workspace);
+      if (active) {
+        selectSession(active.path || '', { fromLoad: true, preserveFocus: true, force: true });
+        return;
+      }
+    }
+    if (!state.workspace && !state.freshSessionRequested && state.sessions.length) {
+      selectSession(state.sessions[0].path || '', { fromLoad: true });
+      return;
+    }
+    renderSessionList();
+  } catch (err) {
+    sessionListEl.innerHTML = '<div class="empty-inline">会话列表加载失败</div>';
+  }
+}
+
+function renderSessionList() {
+  if (!sessionListEl) return;
+  if (!state.sessions.length) {
+    sessionListEl.innerHTML = '<div class="empty-inline">暂无历史会话</div>';
+    return;
+  }
+  sessionListEl.innerHTML = state.sessions.slice(0, 10).map(session => {
+    const active = session.path && session.path === state.workspace ? ' active' : '';
+    const title = session.title || session.last_task || session.name || '未命名会话';
+    const turns = Number(session.turn_index || 0);
+    const route = session.last_route || 'session';
+    return `
+      <button class="session-item${active}" type="button" data-path="${escapeHtml(session.path || '')}">
+        <div class="session-title">${escapeHtml(title)}</div>
+        <div class="session-meta"><span>${turns} 轮</span><span>${escapeHtml(route)}</span></div>
+      </button>
+    `;
+  }).join('');
+  sessionListEl.querySelectorAll('.session-item').forEach(button => {
+    button.addEventListener('click', () => selectSession(button.dataset.path || ''));
+  });
+}
+
+function selectSession(path, options = {}) {
+  if (!path || (state.running && !options.force)) return;
+  const session = state.sessions.find(item => item.path === path);
+  if (!session) return;
+  state.freshSessionRequested = false;
+  state.workspace = session.path || '';
+  state.sessionId = session.session_id || '';
+  state.turn = Number(session.turn_index || 0);
+  state.route = session.last_route || '';
+  state.toolCalls = 0;
+  state.failedTools = 0;
+  state.approvals = 0;
+  state.checkpoint = '';
+  state.todos = [];
+  state.filePreviews = [];
+  state.currentTurnEl = null;
+  state.currentEventsEl = null;
+  state.currentProgressEl = null;
+  state.currentInternalBodyEl = null;
+  updateSidebar();
+  updateFilePreview();
+  renderSessionList();
+  sessionIdDisplay.textContent = state.sessionId || '—';
+  sessionBar.classList.toggle('show', Boolean(state.sessionId));
+  renderSessionHistory(session);
+  if (!options.fromLoad && !options.preserveFocus) taskInput.focus();
+}
+
+function renderSessionHistory(session) {
+  clearConversation({ showEmpty: false });
+  const turns = Array.isArray(session.recent_turns) ? session.recent_turns : [];
+  if (!turns.length) {
+    eventsEl.appendChild(emptyState);
+    return;
+  }
+  for (const turn of turns) {
+    const role = turn.role === 'assistant' ? 'assistant' : 'user';
+    const roleLabel = role === 'assistant' ? 'AI' : '你';
+    const route = turn.route ? ` · ${turn.route}` : '';
+    const content = turn.content || turn.summary || '';
+    if (role === 'assistant' && turn.route === 'workflow') {
+      eventsEl.appendChild(createHistoryWorkflowCard(turn, content));
+    }
+    const renderedContent = role === 'assistant' ? renderMarkdown(content) : escapeHtml(content);
+    const markdownClass = role === 'assistant' ? ' markdown-body' : '';
+    const el = document.createElement('div');
+    el.className = `history-turn ${role}`;
+    el.innerHTML = `
+      <div class="history-role">${roleLabel}</div>
+      <div class="history-bubble${markdownClass}">
+        ${renderedContent}
+        <div class="history-meta">第 ${turn.turn || state.turn} 轮${escapeHtml(route)}</div>
+      </div>
+    `;
+    eventsEl.appendChild(el);
+  }
+  eventsEl.scrollTop = eventsEl.scrollHeight;
+}
+
+function createHistoryWorkflowCard(turn, finalText) {
+  const wrap = document.createElement('div');
+  wrap.className = 'history-workflow-card';
+  const diagnostic = buildWorkflowDiagnostic(finalText, turn);
+  wrap.innerHTML = `
+    <div class="event-card internal internal-bucket">
+      <div class="head">
+        <span class="icon">·</span>
+        <span class="title">工作流已折叠 · 第 ${turn.turn || state.turn} 轮</span>
+        <span class="visibility-badge">诊断</span>
+        <span class="time">${escapeHtml(turn.timestamp ? String(turn.timestamp).slice(11, 19) : '')}</span>
+        <span class="expand">▶</span>
+      </div>
+      <div class="body">${renderHistoryWorkflowBody(diagnostic)}</div>
+    </div>
+  `;
+  const body = wrap.querySelector('.body');
+  const expand = wrap.querySelector('.expand');
+  const toggle = () => {
+    const isOpen = body.classList.toggle('open');
+    expand.classList.toggle('open', isOpen);
+  };
+  wrap.querySelector('.head').addEventListener('click', toggle);
+  return wrap;
+}
+
+function renderHistoryWorkflowBody(diagnostic) {
+  if (Array.isArray(diagnostic)) {
+    return diagnostic.map((event, index) => `
+      <div class="workflow-event-line">
+        <div class="workflow-event-title">${index + 1}. ${escapeHtml(event.title || event.type || 'workflow')}</div>
+        <pre>${escapeHtml(event.detail || '')}</pre>
+      </div>
+    `).join('');
+  }
+  return `<pre>${escapeHtml(diagnostic || '暂无可用的工作流诊断信息。')}</pre>`;
+}
+
+function buildWorkflowDiagnostic(finalText, turn) {
+  const workflowEvents = Array.isArray(turn.workflow_events) ? turn.workflow_events : [];
+  if (workflowEvents.length) return workflowEvents;
+  const text = String(finalText || '');
+  const status = (text.match(/LangGraph MultiAgent workflow finished:\s*([^\n]+)/) || [])[1];
+  const sections = ['Plan', 'Todos', 'Files', 'Verifier', 'Checks', 'Context compression', 'CodeAgent summary'];
+  const lines = [];
+  if (status) lines.push(`Status: ${status.trim()}`);
+  lines.push(`Route: ${turn.route || 'workflow'}`);
+  for (const name of sections) {
+    const value = extractFinalSection(text, name);
+    if (value && value !== '(none)') {
+      lines.push(`\n${name}:\n${shrink(value, 1200)}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+function extractFinalSection(text, name) {
+  const names = ['Plan', 'Todos', 'Files', 'Research summary', 'Research sources', 'Verifier', 'Checks', 'Context compression', 'CodeAgent summary'];
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const nextNames = names.filter(item => item !== name).map(item => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const pattern = new RegExp(`${escaped}:\\n?([\\s\\S]*?)(?=\\n\\n(?:${nextNames}):|$)`);
+  const match = text.match(pattern);
+  return match ? match[1].trim() : '';
+}
+
+// ── Sidebar ─────────────────────────────────────────────────────────────
+function updateSidebar() {
+  document.getElementById('side-session').textContent = state.sessionId || '—';
+  document.getElementById('side-turn').textContent = state.turn || '—';
+  document.getElementById('side-workspace').textContent = state.workspace ? shrink(state.workspace, 40) : '—';
+  document.getElementById('side-route').textContent = state.route || '—';
+  document.getElementById('side-tools').textContent = state.toolCalls;
+  document.getElementById('side-failed').textContent = state.failedTools;
+  document.getElementById('side-approvals').textContent = state.approvals;
+  document.getElementById('side-checkpoint').textContent = state.checkpoint ? shrink(state.checkpoint, 30) : '—';
+
+  const el = document.getElementById('side-todos');
+  if (!state.todos || !state.todos.length) {
+    el.innerHTML = '<div style="color:#6a7276;font-size:12px">(暂无)</div>';
+  } else {
+    el.innerHTML = state.todos.map(t => {
+      const s = t.status || 'pending';
+      const cls = s === 'completed' ? 'done' : s === 'in_progress' ? 'active' : 'pending';
+      const mark = s === 'completed' ? '✅' : s === 'in_progress' ? '🔄' : '⬜';
+      return `<div class="todo-item ${cls}"><span class="mark">${mark}</span><span class="todo-text">${escapeHtml(t.content || t.description || '')}</span></div>`;
+    }).join('');
+  }
+}
+
+// ── Approval Modal ──────────────────────────────────────────────────────
+const modal = document.getElementById('approval-modal');
+const userInputModal = document.getElementById('user-input-modal');
+function showApprovalModal(data) {
+  document.getElementById('approval-tool').textContent = data.tool_name || 'BashTool';
+  document.getElementById('approval-command').textContent = data.command || '';
+  document.getElementById('approval-risk').textContent = data.risk_reason || '';
+  modal.classList.add('open');
+  return new Promise((resolve) => {
+    state.approvalPending = { request_id: data.request_id, resolve };
+  });
+}
+document.getElementById('btn-approve').addEventListener('click', () => {
+  if (state.approvalPending) {
+    state.approvals++; updateSidebar();
+    state.ws.send(JSON.stringify({ type: 'approval', request_id: state.approvalPending.request_id, approved: true }));
+    state.approvalPending = null;
+  }
+  modal.classList.remove('open');
+});
+document.getElementById('btn-reject').addEventListener('click', () => {
+  if (state.approvalPending) {
+    state.ws.send(JSON.stringify({ type: 'approval', request_id: state.approvalPending.request_id, approved: false, reason: '用户拒绝' }));
+    state.approvalPending = null;
+  }
+  modal.classList.remove('open');
+});
+
+function showUserInputModal(data) {
+  const questionEl = document.getElementById('user-input-question');
+  const contextEl = document.getElementById('user-input-context');
+  const answerEl = document.getElementById('user-input-answer');
+  questionEl.textContent = data.question || '';
+  contextEl.textContent = data.context || '无';
+  answerEl.value = data.default || '';
+  userInputModal.classList.add('open');
+  state.userInputPending = { request_id: data.request_id };
+  setTimeout(() => answerEl.focus(), 0);
+}
+
+function closeUserInputModal() {
+  userInputModal.classList.remove('open');
+  state.userInputPending = null;
+}
+
+document.getElementById('btn-user-submit').addEventListener('click', () => {
+  if (!state.userInputPending) return;
+  const answer = document.getElementById('user-input-answer').value.trim();
+  state.ws.send(JSON.stringify({
+    type: 'user_input',
+    request_id: state.userInputPending.request_id,
+    answer,
+    canceled: false,
+  }));
+  closeUserInputModal();
+});
+
+document.getElementById('btn-user-cancel').addEventListener('click', () => {
+  if (state.userInputPending) {
+    state.ws.send(JSON.stringify({
+      type: 'user_input',
+      request_id: state.userInputPending.request_id,
+      answer: '',
+      canceled: true,
+    }));
+  }
+  closeUserInputModal();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (!modal.classList.contains('open')) return;
+  if (e.key === 'y' || e.key === 'Y') { document.getElementById('btn-approve').click(); e.preventDefault(); }
+  if (e.key === 'n' || e.key === 'N' || e.key === 'Escape') { document.getElementById('btn-reject').click(); e.preventDefault(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (!userInputModal.classList.contains('open')) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    document.getElementById('btn-user-submit').click();
+    e.preventDefault();
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('btn-user-cancel').click();
+    e.preventDefault();
+  }
+});
+
+// ── Input & Keyboard ────────────────────────────────────────────────────
+taskInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitTask(); }
+});
+sendBtn.addEventListener('click', submitTask);
+const newSessionBtn = document.getElementById('new-session-btn');
+if (newSessionBtn) newSessionBtn.addEventListener('click', beginNewSession);
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'l') { e.preventDefault(); clearConversation(); }
+});
+
+function submitTask() {
+  const task = taskInput.value.trim();
+  if (!task || !state.connected || state.running) return;
+  taskInput.value = '';
+  sendRun(task);
+}
+
+function clearConversation(options = {}) {
+  const { showEmpty = true } = options;
+  eventsEl.querySelectorAll('.turn-group').forEach(el => el.remove());
+  eventsEl.querySelectorAll('.session-separator,.history-turn,.history-workflow-card').forEach(el => el.remove());
+  if (emptyState && emptyState.parentNode) emptyState.remove();
+  if (showEmpty && !eventsEl.querySelector('.turn-group')) {
+    eventsEl.appendChild(emptyState);
+  }
+  document.getElementById('log-entries').innerHTML = '';
+  state.filePreviews = [];
+  updateFilePreview();
+}
+
+// ── Init ────────────────────────────────────────────────────────────────
+connect();
+loadSessions();
+</script>
+</body>
+</html>

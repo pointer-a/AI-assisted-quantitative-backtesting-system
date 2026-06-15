@@ -26,7 +26,7 @@ body {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 280px 1fr 370px;
 }
 
 .sidebar {
@@ -523,6 +523,91 @@ canvas {
   background: #1a4450;
 }
 
+/* ── 右栏 Agent 对话面板 ─────────────────────────────── */
+.chat-panel {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  background: #141922;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  flex: 1;
+}
+
+/* ── 中栏浮动文件预览 ────────────────────────────────── */
+.file-preview {
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  width: 50%;
+  height: 55%;
+  min-width: 360px;
+  z-index: 20;
+  border: 1px solid #1c9aaa;
+  border-radius: 8px;
+  background: rgba(17, 21, 27, .97);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .55);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.file-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #1c9aaa;
+  background: #15333b;
+  font-size: 13px;
+  color: #9de8ef;
+  flex-shrink: 0;
+}
+
+.fp-close-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9de8ef;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.fp-close-btn:hover {
+  background: rgba(255, 255, 255, .08);
+}
+
+.file-preview-body {
+  flex: 1;
+  padding: 14px;
+  margin: 0;
+  overflow: auto;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e8edf5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--panel);
+}
+
+@media (max-width: 1200px) {
+  .app-shell {
+    grid-template-columns: 280px 1fr 340px;
+  }
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -531,6 +616,16 @@ canvas {
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .chat-panel {
+    display: none;
+  }
+
+  .file-preview {
+    left: 4%;
+    width: 92%;
+    min-width: 0;
   }
 
   .topbar {
