@@ -396,20 +396,6 @@ canvas {
   width: 100%;
   border: none;
   flex: 1;
-  display: none;
-}
-
-.agent-card-frame.loaded {
-  display: block;
-}
-
-.agent-loading {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-  font-size: 14px;
 }
 
 /* 中栏预览区域（relative 定位容器，供浮动文件预览使用） */
