@@ -64,13 +64,15 @@
 
     <!-- 右栏：Agent 接入 -->
     <aside class="agent-shell">
-      <div class="agent-shell-head">
-        <span class="agent-title">策略生成 Agent</span>
-        <span class="agent-status disconnected" id="agentStatus">未连接</span>
+      <div class="agent-card">
+        <div class="agent-card-head">
+          <span class="agent-title">策略生成 Agent</span>
+          <span class="agent-status disconnected" id="agentStatus">未连接</span>
+        </div>
+        <div id="agentLoading" class="agent-loading">Agent 加载中…</div>
+        <iframe id="chatFrame" class="agent-card-frame" data-src="/chat.html"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </div>
-      <div id="agentLoading" class="agent-loading">Agent 加载中…</div>
-      <iframe id="chatFrame" class="agent-frame" data-src="/chat.html"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
     </aside>
   </main>
 
@@ -90,7 +92,7 @@
           frame.src = src;
           frame.onload = () => {
             frame.classList.add("loaded");
-            loading.hidden = true;
+            if (loading) loading.hidden = true;
           };
         }, 100);
       });
