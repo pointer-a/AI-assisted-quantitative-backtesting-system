@@ -46,6 +46,29 @@ const STRATEGY_LIBRARY = [
 ];
 
 const SELECTED_STRATEGY_KEY = "ai_backtester_selected_strategy";
+const USER_STRATEGIES_KEY = "ai_backtester_user_strategies";
+
+// 加载用户创建的策略（持久化到 localStorage）
+function loadUserStrategies() {
+  try {
+    return JSON.parse(localStorage.getItem(USER_STRATEGIES_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveUserStrategies(list) {
+  localStorage.setItem(USER_STRATEGIES_KEY, JSON.stringify(list));
+}
+
+// 清理未生成文件的空策略，将有效的合并到 STRATEGY_LIBRARY
+(function initUserStrategies() {
+  const saved = loadUserStrategies();
+  const valid = saved.filter(s => s.fileGenerated);
+  const invalid = saved.filter(s => !s.fileGenerated);
+  if (invalid.length) saveUserStrategies(valid);
+  valid.forEach(s => STRATEGY_LIBRARY.unshift(s));
+})();
 
 function defaultStrategy() {
   return STRATEGY_LIBRARY[0];
@@ -53,6 +76,16 @@ function defaultStrategy() {
 
 function findStrategy(id) {
   return STRATEGY_LIBRARY.find((item) => item.id === id) || defaultStrategy();
+}
+
+// 标记当前策略已有文件生成
+function markStrategyFileGenerated(strategyId) {
+  const saved = loadUserStrategies();
+  const entry = saved.find(s => s.id === strategyId);
+  if (entry && !entry.fileGenerated) {
+    entry.fileGenerated = true;
+    saveUserStrategies(saved);
+  }
 }
 
 function loadSelectedStrategy() {

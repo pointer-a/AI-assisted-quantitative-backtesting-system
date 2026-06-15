@@ -64,13 +64,10 @@
     <!-- 右栏：Agent 接入 -->
     <aside class="agent-shell">
       <div class="agent-card">
-        <div class="agent-card-head">
-          <span class="agent-title">策略生成 Agent</span>
-          <span class="agent-status disconnected" id="agentStatus">未连接</span>
-        </div>
         <iframe id="chatFrame" src="/chat.html" class="agent-card-frame"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </div>
+      <span class="agent-status disconnected" id="agentStatus">未连接</span>
     </aside>
   </main>
 
@@ -86,6 +83,10 @@
       const msg = event.data;
       if (msg?.type === "preview-file") {
         showFilePreview(msg.name || "file", msg.content || "");
+        // Agent 生成文件后标记当前策略为有效
+        if (currentStrategyId && typeof markStrategyFileGenerated === "function") {
+          markStrategyFileGenerated(currentStrategyId);
+        }
       }
       if (msg?.type === "agent-status") {
         updateAgentStatus(msg.status || "disconnected");
