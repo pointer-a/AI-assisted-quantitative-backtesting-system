@@ -611,6 +611,7 @@ canvas {
 
 /* ── 策略页浮动文件预览（Agent 创建文件时在策略设置页中栏显示）── */
 .file-preview {
+  display: none;
   position: absolute;
   top: 10%;
   left: 10%;
@@ -622,9 +623,12 @@ canvas {
   border-radius: 8px;
   background: rgba(17, 21, 27, .97);
   box-shadow: 0 16px 48px rgba(0, 0, 0, .55);
-  display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.file-preview.open {
+  display: flex;
 }
 
 .file-preview-head {

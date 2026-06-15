@@ -50,7 +50,7 @@
       <!-- 策略规则 + 浮动文件预览 -->
       <div class="strategy-preview-area">
         <section class="rule-canvas" id="ruleCanvas"></section>
-        <div id="filePreview" class="file-preview" hidden>
+        <div id="filePreview" class="file-preview">
           <div class="file-preview-head">
             <span id="filePreviewName">—</span>
             <button id="filePreviewClose" type="button" class="fp-close-btn">&times;</button>
@@ -106,14 +106,16 @@
       const hintEl = document.getElementById("filePreviewHint");
       if (!el || !nameEl || !contentEl) return;
       nameEl.textContent = "Agent_strategy/" + name;
-      contentEl.textContent = content;
+      contentEl.textContent = content || "";
       if (hintEl) hintEl.hidden = true;
-      el.hidden = false;
+      el.classList.add("open");
     }
 
     function hideFilePreview() {
       const el = document.getElementById("filePreview");
-      if (el) el.hidden = true;
+      const hintEl = document.getElementById("filePreviewHint");
+      if (el) el.classList.remove("open");
+      if (hintEl) hintEl.hidden = false;
     }
 
     // 点击关闭按钮或遮罩关闭
