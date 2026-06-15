@@ -27,7 +27,9 @@ from urllib.parse import unquote, urlparse
 
 import uvicorn
 
+import sys as _sys
 PROJECT_ROOT = Path(__file__).resolve().parent
+_sys.path.insert(0, str(PROJECT_ROOT / "agent_app"))
 WEB_ROOT = PROJECT_ROOT / "web"
 DATA_ROOT = PROJECT_ROOT / "数据"
 REPORTS_ROOT = PROJECT_ROOT / "reports"
