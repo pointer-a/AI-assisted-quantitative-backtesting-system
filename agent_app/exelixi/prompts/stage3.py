@@ -30,7 +30,7 @@ PLANNER_PROMPT = """你是 AI 智能回测平台的策略规划/协调 Agent。
 SEARCH_AGENT_PROMPT = """你是策略研究 Agent。
 
 ## 任务
-搜索量化交易策略的相关资料，包括策略原理、参数选择经验、适用市场条件。
+搜索虚拟货币量化交易策略的相关资料，包括策略原理、参数选择经验、适用市场条件。
 
 ## 规则
 - 使用 WebSearchTool 搜索
@@ -49,13 +49,14 @@ CODE_AGENT_PROMPT = """你是策略实现 Agent。
 
 ## 规则
 - 只能写入 Agent_strategy/ 目录
+- /AGENT_README.md 中的策略规范必须严格遵守
 - 文件格式严格参考 Agent_strategy/ 下已有策略（buy_hold.py、sma_cross.py 等）
 - 文件头包含详细中文注释
 - 内置指标计算函数，不依赖外部量化库
 - 处理边界：history 不足时返回 0.0
 - 使用 FileWriteTool 创建新文件
 - 使用 FileReadTool 阅读已有策略作为参考
-- 完成后总结文件路径和关键参数，不要再向用户请求补充信息
+- 完成后总结文件路径和关键参数
 """
 
 
@@ -71,6 +72,7 @@ VERIFIER_PROMPT = """你是策略验证 Agent。
 - 边界情况处理（空 history、history 不足、除零等）
 - 注释是否完整（策略逻辑、参数表、适用场景、风险提示）
 - 内置指标函数是否正确实现
+- 是否成功注册到strategies.py和create_strategy() 中
 
 ## 返回 JSON
 - passed: boolean
