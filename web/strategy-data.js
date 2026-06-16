@@ -83,19 +83,42 @@ function titleFromStrategyFile(name, content) {
     .join(" ");
 }
 
+function strategySummaryFromFile(content) {
+  // 从 docstring 提取策略概要：分隔线后、第一个章节前的段落
+  const text = String(content || "");
+  const match = text.match(/={3,}\r?\n\r?\n([\s\S]*?)(?=\r?\n[^\r\n]+\r?\n[-=]{3,})/);
+  if (match) {
+    return match[1]
+      .replace(/\r/g, "")
+      .split("\n")
+      .map(l => l.replace(/^[\s#*>-]+\s*/, "").trim())
+      .filter(l => l && l.length > 6)
+      .slice(0, 4)
+      .join("\n") || "";
+  }
+  return "";
+}
+
 function rulesFromStrategyContent(content) {
   const text = String(content || "");
   const rules = [];
 
+  // 策略概要（取第一句，展示在大方框顶部）
+  const summary = strategySummaryFromFile(content);
+  if (summary) {
+    const firstLine = summary.split("\n")[0].replace(/[**]/g, "").trim();
+    if (firstLine) rules.push("策略概要：" + firstLine);
+  }
+
   // 从 策略逻辑 段落提取关键操作点（支持 CRLF 换行）
-  const logicMatch = text.match(/策略 logic\s*\r?\n\s*[-]+\s*\r?\n([\s\S]*?)(?=\r?\n[^\r\n]+\r?\n[-=]{3,})/);
+  const logicMatch = text.match(/策略逻辑\s*\r?\n\s*[-]+\s*\r?\n([\s\S]*?)(?=\r?\n[^\r\n]+\r?\n[-=]{3,})/);
   if (logicMatch) {
     const lines = logicMatch[1].split(/\r?\n/);
     for (const line of lines) {
       const bullet = line.match(/^\s*[-*•]\s*(.+?)\s*$/);
       if (bullet) {
         const clean = bullet[1].replace(/[*_]/g, "").trim();
-        if (clean && rules.length < 2) rules.push(clean);
+        if (clean && rules.length < 3) rules.push(clean);
       }
     }
   }
