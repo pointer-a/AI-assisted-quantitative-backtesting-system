@@ -83,23 +83,6 @@ function titleFromStrategyFile(name, content) {
     .join(" ");
 }
 
-function descriptionFromStrategyFile(content) {
-  const text = String(content || "");
-  // 从分隔线后的段落提取策略概要（跳过章节标题行）
-  const summary = text.match(/={3,}\r?\n\r?\n([\s\S]*?)(?=\r?\n[^\r\n]+\r?\n[-=]{3,})/);
-  if (summary) {
-    return summary[1]
-      .replace(/\r/g, "")
-      .split("\n")
-      .map(l => l.replace(/^[\s#*>-]+\s*/, "").trim())
-      .filter(l => l && l.length > 6)
-      .filter(Boolean)
-      .slice(0, 3)
-      .join(" · ") || "";
-  }
-  return "Agent 生成策略";
-}
-
 function rulesFromStrategyContent(content) {
   const text = String(content || "");
   const rules = [];
@@ -148,7 +131,7 @@ function normalizeGeneratedStrategy(input, fallbackId = "") {
     params: {},
     returnText: "待回测",
     winRateText: "待回测",
-    description: descriptionFromStrategyFile(content) || `Agent 生成策略：${path || name}`,
+    description: "Agent 生成",
     rules: rulesFromStrategyContent(content),
     fileGenerated: true,
     generated: true,
