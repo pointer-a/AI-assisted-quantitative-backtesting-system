@@ -402,7 +402,6 @@ def _format_captured_output(state: RuntimeState, stdout: str, stderr: str, max_o
     output: dict[str, Any] = {}
     output_dir = state.workspace / ".exelixi" / "bash-outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
-    cwd = _command_cwd(state, command)
     if len(stdout) > max_output_chars:
         stdout_path = output_dir / f"stdout-{time.time_ns()}.log"
         stdout_path.write_text(stdout, encoding="utf-8", errors="replace")
@@ -426,6 +425,7 @@ def _run_background(
 ) -> dict[str, Any]:
     output_dir = state.workspace / ".exelixi" / "background"
     output_dir.mkdir(parents=True, exist_ok=True)
+    cwd = _command_cwd(state, command)
     stamp = time.time_ns()
     stdout_path = output_dir / f"job-{stamp}.out"
     stderr_path = output_dir / f"job-{stamp}.err"
