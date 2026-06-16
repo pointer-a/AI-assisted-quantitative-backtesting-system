@@ -37,7 +37,8 @@ def bash_tool_description() -> str:
         "cd workspace, or long-lived interactive commands. Each call starts a fresh shell; exported variables do not persist "
         "between calls, so write reusable environment values to the configured env file or pass them inline. "
         "If the command references Agent_strategy, it runs from the project root so Agent_strategy/ resolves to the real strategy directory. "
-        "Long-running servers should use run_in_background=true. Prefer cross-platform Python one-liners for file checks."
+        "Long-running servers should use run_in_background=true. "
+        "For checking file existence or listing directories, use FileReadTool (returns ok=false if not found) instead of python -c."
     )
     if system == "windows":
         return (
@@ -45,7 +46,8 @@ def bash_tool_description() -> str:
             + " Current platform: Windows. Commands are executed by cmd.exe, not bash or PowerShell. "
             "Use Windows cmd syntax: dir for listing, type file.txt for printing a file, copy/move/del for simple file operations, "
             "&& for chaining, and set VAR=value for environment variables. Do not use POSIX-only tools like tail, grep, sed, awk, "
-            "cat, ls, export, or here-documents unless you implement the behavior with python -c."
+            "cat, ls, export, or here-documents. "
+            "Use FileReadTool for reading files and checking file existence instead of python -c."
         )
     if system == "darwin":
         return (

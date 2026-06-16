@@ -16,9 +16,10 @@ def build_tools(state: RuntimeState) -> list[StructuredTool]:
             name="FileReadTool",
             func=lambda file_path, offset=0, limit=2000: read_file(state, file_path, offset, limit),
             description=(
-                "Read a UTF-8 text file. Normal relative paths are inside the conversation workspace; "
+                "Read a UTF-8 text file, or check if a file exists (returns ok=false if not found). "
+                "Normal relative paths are inside the conversation workspace; "
                 "paths beginning with Agent_strategy/ resolve to the project root Agent_strategy/ directory. "
-                "Supports offset and limit."
+                "Supports offset and limit. Prefer this over python -c or BashTool for checking file existence."
             ),
         ),
         StructuredTool.from_function(
@@ -71,9 +72,10 @@ def build_read_only_tools(state: RuntimeState) -> list[StructuredTool]:
             name="FileReadTool",
             func=lambda file_path, offset=0, limit=2000: read_file(state, file_path, offset, limit),
             description=(
-                "Read a UTF-8 text file. Normal relative paths are inside the conversation workspace; "
+                "Read a UTF-8 text file, or check if a file exists (returns ok=false if not found). "
+                "Normal relative paths are inside the conversation workspace; "
                 "paths beginning with Agent_strategy/ resolve to the project root Agent_strategy/ directory. "
-                "Supports offset and limit."
+                "Supports offset and limit. Prefer this over python -c or BashTool for checking file existence."
             ),
         ),
         StructuredTool.from_function(
