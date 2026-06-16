@@ -149,7 +149,7 @@ function normalizeGeneratedStrategy(input, fallbackId = "") {
   return {
     id,
     title,
-    strategy: "custom",
+    strategy: path.replace(/\.py$/i, "").split(/[\\/]/).pop() || "custom",
     yearsText: "Agent",
     params: {},
     returnText: "待回测",
