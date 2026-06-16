@@ -653,12 +653,12 @@ def _build_planner_tools(state: ExelixiGraphState, writer) -> list[StructuredToo
         StructuredTool.from_function(
             name="CallSearchAgentTool",
             func=lambda instruction: _call_search_agent_tool(state, writer, instruction),
-            description="Delegate research work to searchAgent. Args: instruction.",
+            description="Delegate web research to searchAgent (paper searches, parameter optimization, market research). searchAgent ONLY has web search — cannot access files. Args: instruction.",
         ),
         StructuredTool.from_function(
             name="CallCodeAgentTool",
             func=lambda instruction: _call_code_agent_tool(state, writer, instruction),
-            description="Delegate implementation work to codeAgent. Args: instruction.",
+            description="Delegate code implementation or file operations to codeAgent. Use for writing strategy files, reading files, checking file existence, listing directories. Args: instruction.",
         ),
         StructuredTool.from_function(
             name="AskUserTool",

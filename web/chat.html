@@ -201,6 +201,8 @@ body{
 }
 #send-btn:hover:not(:disabled){background:#3f474b}
 #send-btn:disabled{opacity:.4;cursor:default}
+#stop-btn{min-width:68px;background:#ef6f6c;color:#fff;border-color:#ef6f6c;font-weight:700}
+#stop-btn:hover{background:#ff7e7b;border-color:#ff7e7b}
 
 /* ── Approval Modal ──────────────────────────────────── */
 .modal-overlay{
@@ -1943,6 +1945,7 @@ body{
   <span class="prompt">❯</span>
   <input type="text" id="task-input" placeholder="输入任务或继续追问" autofocus>
   <button id="send-btn" disabled>发送</button>
+  <button id="stop-btn" hidden>停止</button>
 </footer>
 
 <!-- Approval Modal -->
@@ -2034,6 +2037,7 @@ const sessionBar = $('session-bar');
 const sessionIdDisplay = $('session-id-display');
 const taskInput = $('task-input');
 const sendBtn = $('send-btn');
+const stopBtn = $('stop-btn');
 const statusBadge = $('status-badge');
 const sessionListEl = $('session-list');
 const STRATEGY_SESSION_BINDINGS_KEY = 'ai_backtester_agent_strategy_sessions';
@@ -2087,7 +2091,9 @@ function connect() {
     state.running = false;
     setStatus('disconnected');
     sendBtn.disabled = true;
+    sendBtn.hidden = false;
     taskInput.disabled = true;
+    stopBtn.hidden = true;
     setTimeout(connect, 2000);
   };
 
@@ -2432,7 +2438,9 @@ function sendRun(task) {
   state.freshSessionRequested = false;
   setStatus('running');
   sendBtn.disabled = true;
+  sendBtn.hidden = true;
   taskInput.disabled = true;
+  stopBtn.hidden = false;
 
   beginTurn(task);
 
@@ -2463,6 +2471,7 @@ function handleEvent(data) {
     state.running = false;
     setStatus('connected');
     sendBtn.disabled = false;
+    sendBtn.hidden = false;
     taskInput.disabled = false;
     taskInput.focus();
     loadSessions();
@@ -2492,6 +2501,8 @@ function handleEvent(data) {
     const status = data.status || 'finished';
     endTurn(status);
     state.running = false;
+    stopBtn.hidden = true;
+    sendBtn.hidden = false;
     return;
   }
 
@@ -3807,6 +3818,19 @@ taskInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitTask(); }
 });
 sendBtn.addEventListener('click', submitTask);
+stopBtn.addEventListener('click', () => {
+  if (state.ws) {
+    try { state.ws.close(); } catch (_) {}
+    state.ws = null;
+  }
+  state.running = false;
+  stopBtn.hidden = true;
+  sendBtn.hidden = false;
+  sendBtn.disabled = true;
+  setStatus('disconnected');
+  endTurn('stopped');
+  setTimeout(connect, 500);
+});
 const newSessionBtn = document.getElementById('new-session-btn');
 if (newSessionBtn) newSessionBtn.addEventListener('click', beginNewSession);
 document.addEventListener('keydown', (e) => {
