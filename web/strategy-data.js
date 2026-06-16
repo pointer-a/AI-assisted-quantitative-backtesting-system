@@ -73,31 +73,63 @@ function strategyIdFromPath(path) {
 
 function titleFromStrategyFile(name, content) {
   const text = String(content || "");
-  const docTitle = text.match(/^[\\s\\S]*?\"\"\"\\s*([^\\n=\\-]+)/)?.[1]?.trim();
-  if (docTitle) return docTitle.replace(/\\s*\\([^)]*\\)\\s*$/, "").trim();
+  const docTitle = text.match(/^[\s\S]*?"""\s*([^\r\n=\-]+)/)?.[1]?.trim();
+  if (docTitle) return docTitle.replace(/\s*\([^)]*\)\s*$/, "").trim();
   return String(name || "agent_strategy.py")
-    .replace(/\\.py$/i, "")
+    .replace(/\.py$/i, "")
     .split("_")
     .filter(Boolean)
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
 
-function rulesFromStrategyContent(content, path) {
+function descriptionFromStrategyFile(content) {
+  const text = String(content || "");
+  // 从分隔线后的段落提取策略概要（跳过章节标题行）
+  const summary = text.match(/={3,}\r?\n\r?\n([\s\S]*?)(?=\r?\n[^\r\n]+\r?\n[-=]{3,})/);
+  if (summary) {
+    return summary[1]
+      .replace(/\r/g, "")
+      .split("\n")
+      .map(l => l.replace(/^[\s#*>-]+\s*/, "").trim())
+      .filter(l => l && l.length > 6)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(" · ") || "";
+  }
+  return "Agent 生成策略";
+}
+
+function rulesFromStrategyContent(content) {
   const text = String(content || "");
   const rules = [];
-  const core = text.match(/核心规则[\\s\\S]*?(?:使用方法|参数|作者|\"\"\"|$)/)?.[0] || "";
-  core.split(/\\r?\\n/).forEach(line => {
-    const clean = line
-      .replace(/^\\s*(?:[-*•]|\\d+[.)、]|[①②③④⑤⑥⑦⑧⑨⑩])\\s*/, "")
-      .replace(/[`*_]/g, "")
-      .trim();
-    if (clean && clean !== "核心规则" && rules.length < 4) rules.push(clean);
-  });
+
+  // 从 策略逻辑 段落提取关键操作点（支持 CRLF 换行）
+  const logicMatch = text.match(/策略 logic\s*\r?\n\s*[-]+\s*\r?\n([\s\S]*?)(?=\r?\n[^\r\n]+\r?\n[-=]{3,})/);
+  if (logicMatch) {
+    const lines = logicMatch[1].split(/\r?\n/);
+    for (const line of lines) {
+      const bullet = line.match(/^\s*[-*•]\s*(.+?)\s*$/);
+      if (bullet) {
+        const clean = bullet[1].replace(/[*_]/g, "").trim();
+        if (clean && rules.length < 2) rules.push(clean);
+      }
+    }
+  }
+
+  // 从 参数 表格提取关键参数
+  const tableMatch = text.match(/\|([^|\r\n]+)\|\s*(\d+)\s*\|/g);
+  if (tableMatch) {
+    for (const line of tableMatch.slice(0, 2)) {
+      const parts = line.split("|").map(s => s.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        rules.push(`参数 ${parts[0]} 默认 ${parts[1]}`);
+      }
+    }
+  }
+
   if (!rules.length) {
-    rules.push("Agent 生成策略文件", path || "Agent_strategy/");
-    rules.push("待注册到回测引擎");
-    rules.push("待运行回测验证");
+    rules.push("Agent 自动生成策略");
   }
   return rules.slice(0, 4);
 }
@@ -116,8 +148,8 @@ function normalizeGeneratedStrategy(input, fallbackId = "") {
     params: {},
     returnText: "待回测",
     winRateText: "待回测",
-    description: `Agent 生成策略：${path || name}`,
-    rules: rulesFromStrategyContent(content, path || name),
+    description: descriptionFromStrategyFile(content) || `Agent 生成策略：${path || name}`,
+    rules: rulesFromStrategyContent(content),
     fileGenerated: true,
     generated: true,
     filePath: path,
