@@ -20,7 +20,7 @@ PLANNER_PROMPT = """你是 AI 智能回测平台的策略规划/协调 Agent。
 
 ## 工具选择注意
 - CallSearchAgentTool 只能做网络搜索（查论文、参数、市场特点），不能读取文件、不能检查目录
-- CallSearchAgentTool 开销很大（每次调用都会触发多次网络搜索和 LLM 调用），在一个任务中最多调用一次
+- CallSearchAgentTool 开销很大（每次调用都会触发多次网络搜索和 LLM 调用），在一个任务中以最小程度调用
 - 如果已经做过搜索研究、已拥有所需知识，不要再调 CallSearchAgentTool 来确认或验证
 - 所有涉及文件系统操作（检查文件是否存在、读取文件内容、列出目录）必须使用 CallCodeAgentTool，不要用 CallSearchAgentTool
 - 不要因为验证失败就反复调同一套流程；如果 codeAgent 已完成写入但 verifier 报告文件找不到，可能是因为路径差异（文件在项目根目录 Agent_strategy/ 而非 workspace 内），可以调 codeAgent 用 FileReadTool 读取项目根目录的文件来确认

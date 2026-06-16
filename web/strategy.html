@@ -92,29 +92,34 @@
       if (event.origin !== window.location.origin) return;
       const msg = event.data;
       if (msg?.type === "preview-file" || msg?.type === "agent:file-preview") {
-        // 在中栏浮动窗口显示文件内容。Agent 只暴露数据，预览 UI 由父页面接管。
         showFilePreview(msg.name || msg.fileName || "file", msg.content || msg.after || "");
-        // Agent 生成文件后标记当前策略为有效
-        if (currentStrategyId && typeof markStrategyFileGenerated === "function") {
-          const targetId = strategyGenerationTargetId();
-          const strategy = markStrategyFileGenerated(targetId, {
+        // 内存中注册策略（立即响应）
+        if (typeof markStrategyFileGenerated === "function") {
+          const strategy = markStrategyFileGenerated(strategyGenerationTargetId(), {
             name: msg.name || msg.fileName,
             fileName: msg.fileName || msg.name,
             path: msg.path,
             content: msg.content || msg.after || "",
           });
-          refreshStrategyListAfterGenerated(strategy?.id || targetId);
+          if (strategy) refreshStrategyListAfterGenerated(strategy.id);
+        }
+        // API 保底刷新（确保文件存在）
+        if (typeof refreshGeneratedStrategyLibrary === "function") {
+          refreshGeneratedStrategyLibrary();
         }
       }
       if (msg?.type === "strategy-created") {
         if (typeof registerGeneratedStrategy === "function") {
-          const targetId = strategyGenerationTargetId();
           const strategy = registerGeneratedStrategy({
-            id: targetId,
+            id: strategyGenerationTargetId(),
             name: msg.name,
             path: msg.path,
-          }, targetId);
-          refreshStrategyListAfterGenerated(strategy.id);
+          }, strategyGenerationTargetId());
+          if (strategy) refreshStrategyListAfterGenerated(strategy.id);
+        }
+        // API 保底刷新
+        if (typeof refreshGeneratedStrategyLibrary === "function") {
+          refreshGeneratedStrategyLibrary();
         }
       }
       if (msg?.type === "agent:approval-request") {

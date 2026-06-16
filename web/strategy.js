@@ -54,20 +54,6 @@ renderList();
 renderDetail(pageState.selected);
 refreshGeneratedStrategyLibrary();
 
-// 轮询 Agent 生成的策略，确保即使 postMessage 链路断了也能加载
-let _knownAgentStrategyCount = STRATEGY_LIBRARY.filter(s => s.generated).length;
-setInterval(async () => {
-  if (typeof loadGeneratedStrategiesFromServer !== "function") return;
-  const generated = await loadGeneratedStrategiesFromServer();
-  if (!generated.length) return;
-  const newCount = STRATEGY_LIBRARY.filter(s => s.generated).length;
-  if (newCount === _knownAgentStrategyCount) return;
-  _knownAgentStrategyCount = newCount;
-  pageState.selected = findStrategy(pageState.selected.id);
-  renderList();
-  renderDetail(pageState.selected);
-}, 3000);
-
 async function refreshGeneratedStrategyLibrary() {
   if (typeof loadGeneratedStrategiesFromServer !== "function") return;
   const generated = await loadGeneratedStrategiesFromServer();
