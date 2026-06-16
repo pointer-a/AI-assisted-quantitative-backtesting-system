@@ -170,7 +170,12 @@
 
     function refreshStrategyListAfterGenerated(strategyId) {
       if (typeof pageState === "undefined") return;
-      if (strategyId) pageState.selected = findStrategy(strategyId);
+      if (strategyId) {
+        pageState.selected = findStrategy(strategyId);
+        if (typeof saveSelectedStrategy === "function") {
+          saveSelectedStrategy(strategyId);
+        }
+      }
       if (typeof renderList === "function") renderList();
       if (typeof renderDetail === "function") renderDetail(pageState.selected);
     }

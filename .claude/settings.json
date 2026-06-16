@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: BashTool Agent_strategy 路径解析 + 策略库选中持久化 *)"
+    ]
+  }
+}

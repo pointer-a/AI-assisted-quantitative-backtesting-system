@@ -16,6 +16,7 @@ from exelixi.core.state import RuntimeState
 DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_MAX_TIMEOUT_SECONDS = 600
 DEFAULT_MAX_OUTPUT_CHARS = 6000
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 DANGEROUS_PATTERNS = [
     r"\brm\s+-rf\b",
@@ -35,6 +36,7 @@ def bash_tool_description() -> str:
         "The command already runs with cwd set to the workspace, so use relative paths and do not run cd /workspace, "
         "cd workspace, or long-lived interactive commands. Each call starts a fresh shell; exported variables do not persist "
         "between calls, so write reusable environment values to the configured env file or pass them inline. "
+        "If the command references Agent_strategy, it runs from the project root so Agent_strategy/ resolves to the real strategy directory. "
         "Long-running servers should use run_in_background=true. Prefer cross-platform Python one-liners for file checks."
     )
     if system == "windows":
@@ -190,10 +192,11 @@ def run_bash(
     max_output_chars = _state_int(state, "bash_max_output_chars", DEFAULT_MAX_OUTPUT_CHARS)
     if background:
         return _run_background(state, normalized_command, env, approval)
+    cwd = _command_cwd(state, normalized_command)
     try:
         completed = subprocess.run(
             normalized_command,
-            cwd=state.workspace,
+            cwd=cwd,
             shell=True,
             capture_output=True,
             timeout=timeout,
@@ -219,6 +222,12 @@ def run_bash(
         "duration_ms": round((time.perf_counter() - started) * 1000),
         **(approval or {}),
     }
+
+
+def _command_cwd(state: RuntimeState, command: str) -> Path:
+    if re.search(r"(?<![A-Za-z0-9_])Agent_strategy(?:[\\/]|\\b)", command):
+        return PROJECT_ROOT
+    return state.workspace
 
 
 def _resolve_approval(state: RuntimeState, command: str) -> dict[str, Any] | None:
@@ -391,6 +400,7 @@ def _format_captured_output(state: RuntimeState, stdout: str, stderr: str, max_o
     output: dict[str, Any] = {}
     output_dir = state.workspace / ".exelixi" / "bash-outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
+    cwd = _command_cwd(state, command)
     if len(stdout) > max_output_chars:
         stdout_path = output_dir / f"stdout-{time.time_ns()}.log"
         stdout_path.write_text(stdout, encoding="utf-8", errors="replace")
@@ -422,7 +432,7 @@ def _run_background(
     try:
         process = subprocess.Popen(
             command,
-            cwd=state.workspace,
+            cwd=cwd,
             shell=True,
             stdout=stdout_handle,
             stderr=stderr_handle,
