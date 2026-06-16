@@ -1,30 +1,106 @@
-# AI 智能回测程序
+# AI 智能回测 + Agent 工作台
 
-这是一个基于配置文件启动的轻量级智能回测项目。纯 Python 标准库，零外部依赖，适合先把数据、策略、回测、优化、报告这条链路跑通。
+AI 驱动的量化策略回测平台，集成 AI Agent 辅助策略开发、回测分析、参数优化。
 
-## 启动方式
+## 快速启动
 
-推荐入口：
+### 集成服务器（推荐）
 
-```powershell
-cd "E:\codex files\ai-backtester"
-python run.py
-```
+一键启动 Web 前端 + AI Agent + 回测 API：
 
-也可以使用模块入口：
-
-```powershell
-python -m ai_backtester --config config.toml
-```
-
-Web 前端：
-
-```powershell
-python web.py
+```bash
+python agent_server.py
 # 打开 http://127.0.0.1:8765
 ```
 
-程序会读取 [config.toml](config.toml) 中的配置，不需要再手动拼接大量命令行参数。
+### 访问认证
+
+对外开放时设置账号密码：
+
+```bash
+python agent_server.py --auth admin:你的密码
+# 或使用环境变量
+export AUTH=admin:你的密码
+python agent_server.py
+```
+
+启用后浏览器会弹出登录框，输入正确账密才能进入。
+
+### CLI 回测（无 Web）
+
+```bash
+python run.py                     # 读取 config.toml
+python -m ai_backtester --config config.toml
+python -m ai_backtester run --data 数据/BTC --strategy sma_cross
+python -m ai_backtester optimize --data 数据/BTC --strategy sma_cross --trials 50
+```
+
+### 旧版 Web 服务（纯回测，无 Agent）
+
+```bash
+python web.py
+```
+
+## Linux 部署
+
+```bash
+# 克隆
+git clone https://github.com/pointer-a/AI-assisted-quantitative-backtesting-system.git
+cd AI-assisted-quantitative-backtesting-system
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 配置环境变量
+vim .env
+
+# 启动（带认证）
+python3 agent_server.py --auth admin:密码 --host 0.0.0.0
+```
+
+后台运行：
+
+```bash
+nohup python3 agent_server.py --auth admin:密码 > server.log 2>&1 &
+```
+
+更新代码：
+
+```bash
+git fetch origin
+git reset --hard origin/main
+# 重启服务
+```
+
+## 服务器参数
+
+```bash
+python agent_server.py --help
+# --host      监听地址，默认 0.0.0.0（所有网卡）
+# --port      端口，默认 8765
+# --auth      访问认证，格式 user:password（也支持 AUTH 环境变量）
+```
+
+## AI Agent 策略开发
+
+平台集成 AI Agent，可通过对话方式自动开发策略：
+
+1. 在策略页右侧 Agent 面板输入需求，如"创建一个均线交叉策略"
+2. Agent 自动搜索资料 → 编写策略文件 → 写入 `Agent_strategy/` 目录
+3. 策略自动出现在左侧策略库，选中后可立即回测
+4. Agent 生成的策略**无需手动注册**，系统自动发现
+
+### Agent 工作流
+
+```
+用户输入 → Planner Agent（规划任务）
+         → SearchAgent（搜索研究资料）
+         → CodeAgent（编写策略文件到 Agent_strategy/）
+         → Verifier（验证策略正确性）
+         → 自动发现 → 回测引擎
+```
+
+`Agent_strategy/` 下的策略文件通过 `importlib` 自动发现，`create_strategy()` 在硬编码策略未命中时触发自动扫描。
 
 ## 配置文件
 
@@ -114,7 +190,7 @@ end_year = 2024
 - **权威定义**：[Agent_strategy/](Agent_strategy/) — 每个策略一个独立文件，头部有详细注释（策略逻辑、参数表、搜索空间、适用/不适用场景、风险提示），自包含可直接使用
 - **运行时注册**：[ai_backtester/strategies.py](ai_backtester/strategies.py) — 薄注册层，从 Agent_strategy 导入并重新导出，提供 `create_strategy()` 工厂函数供 CLI/Web/优化器使用
 
-新增策略需在两边同时添加。
+Agent 生成的策略会自动发现并注册到回测引擎，无需手动编辑 `strategies.py`。
 
 ## 输出内容
 
