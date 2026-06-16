@@ -16,17 +16,25 @@ def ask_user(
     question: str,
     context: str = "",
     default: str = "",
+    options: list[str] | None = None,
 ) -> dict[str, Any]:
     question = str(question or "").strip()
     if not question:
         return {"ok": False, "error": "question must not be empty"}
-    request = make_user_input_request(question, context=str(context or ""), default=str(default or ""))
+    normalized_options = [str(option).strip() for option in (options or []) if str(option).strip()]
+    request = make_user_input_request(
+        question,
+        context=str(context or ""),
+        default=str(default or ""),
+        options=normalized_options,
+    )
     base = {
         "requires_user_input": True,
         "request_id": request.id,
         "question": request.question,
         "context": request.context,
         "default": request.default,
+        "options": request.options,
     }
     if state.human_request_handler is None:
         return {**base, "ok": False, "error": "user input required, but no handler is available"}

@@ -70,6 +70,7 @@ class _ApprovalBridge:
                     "question": request.question,
                     "context": request.context,
                     "default": request.default,
+                    "options": getattr(request, "options", []),
                     "tool_name": request.tool_name,
                 }),
                 loop,

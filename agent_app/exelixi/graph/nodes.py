@@ -654,10 +654,12 @@ def _build_planner_tools(state: ExelixiGraphState, writer) -> list[StructuredToo
         ),
         StructuredTool.from_function(
             name="AskUserTool",
-            func=lambda question, context="", default="": ask_user(state["runtime"], question, context, default),
+            func=lambda question, context="", default="", options=None: ask_user(
+                state["runtime"], question, context, default, options
+            ),
             description=(
                 "Ask the user for missing information and wait for their reply. "
-                "Args: question, optional context, optional default."
+                "Args: question, optional context, optional default, optional options list for clickable choices."
             ),
         ),
     ]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import uuid4
 
 
@@ -28,6 +28,7 @@ class UserInputRequest:
     question: str
     context: str = ""
     default: str = ""
+    options: list[str] = field(default_factory=list)
     tool_name: str = "AskUserTool"
 
 
@@ -72,6 +73,7 @@ def make_user_input_request(
     *,
     context: str = "",
     default: str = "",
+    options: list[str] | None = None,
     tool_name: str = "AskUserTool",
 ) -> UserInputRequest:
     return UserInputRequest(
@@ -79,5 +81,6 @@ def make_user_input_request(
         question=question,
         context=context,
         default=default,
+        options=list(options or []),
         tool_name=tool_name,
     )

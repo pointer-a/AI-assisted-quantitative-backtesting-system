@@ -226,6 +226,36 @@ body{
   padding:8px 20px;border:none;border-radius:6px;
   font-size:14px;font-weight:500;cursor:pointer;
 }
+.modal-step{
+  margin-left:auto;
+  color:#9aa4a6;
+  font-size:12px;
+  font-weight:600;
+}
+.choice-list{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+.choice-button{
+  width:100%;
+  min-height:40px;
+  height:auto;
+  padding:9px 12px;
+  border:1px solid #3f474b;
+  border-radius:6px;
+  background:#1e2022;
+  color:#f3ede3;
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+  font-weight:600;
+  line-height:1.45;
+}
+.choice-button:hover{
+  border-color:#7fd6c2;
+  background:#252b2e;
+}
 .btn-approve{background:#7fd68a;color:#101113}
 .btn-approve:hover{background:#6bc478}
 .btn-reject{background:#ef6f6c;color:#fff}
@@ -1319,6 +1349,27 @@ body{
   outline:none;
 }
 .modal-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,123,117,.12)}
+.modal-step{
+  color:var(--muted);
+}
+.choice-list{
+  gap:10px;
+}
+.choice-button{
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  color:var(--ink);
+  box-shadow:0 8px 18px rgba(22,36,43,.05);
+  transition:transform 180ms ease,box-shadow 180ms ease,border-color 180ms ease;
+}
+.choice-button:hover{
+  border-color:rgba(15,123,117,.38);
+  background:#fff;
+  transform:translateY(-1px);
+  box-shadow:0 12px 28px rgba(22,36,43,.10);
+}
 .btn-approve{background:var(--deep);color:#fff}
 .btn-approve:hover{background:var(--accent)}
 .btn-reject{background:var(--accent-2)}
@@ -1644,6 +1695,191 @@ body{min-width:0}
     width:100%;
   }
 }
+
+/* Dark embed theme for the backtester workspace */
+:root{
+  color-scheme:dark;
+  --ink:#edf3fb;
+  --muted:#8795a8;
+  --line:#2b3a4b;
+  --line-soft:#1f2a38;
+  --panel:#151d28;
+  --soft:#0f1722;
+  --accent:#33c2b7;
+  --accent-2:#fb7185;
+  --accent-3:#f0b94d;
+  --deep:#0d1520;
+  --shadow:0 18px 46px rgba(0,0,0,.30);
+  --shadow-hover:0 24px 62px rgba(0,0,0,.38);
+  --bg:#0b1017;
+  --panel-2:#1a2431;
+  --surface:#151d28;
+  --surface-soft:#111a25;
+  --text:#edf3fb;
+  --faint:#657589;
+  --cyan:var(--accent);
+  --green:#34d399;
+  --amber:var(--accent-3);
+  --red:var(--accent-2);
+  --violet:#9f8cff;
+  --blue:#6ca6ff;
+}
+html,body{
+  background:#0f1722;
+}
+body{
+  color:var(--text);
+  background:
+    linear-gradient(90deg,rgba(51,194,183,.055) 1px,transparent 1px),
+    linear-gradient(rgba(51,194,183,.045) 1px,transparent 1px),
+    #0f1722;
+  background-size:44px 44px;
+}
+#header,
+#input-area{
+  background:rgba(13,21,32,.94);
+  border-color:var(--line);
+  box-shadow:none;
+}
+#header .logo,
+#input-area .prompt,
+.empty-state .big{
+  background:#10242d;
+  color:#b8fff8;
+  border:1px solid rgba(51,194,183,.36);
+}
+#header .title,
+.empty-state .title,
+.event-card .head .title,
+.workflow-event-title,
+.side-row .value,
+.session-item .session-title{
+  color:var(--text);
+}
+#header .sub,
+.empty-state,
+.empty-state .hint,
+.side-row .label,
+.session-item .session-meta{
+  color:var(--muted);
+}
+#header .status-badge{
+  background:rgba(148,163,184,.12);
+  box-shadow:none;
+}
+#events{
+  background:transparent;
+}
+#main{
+  background:transparent;
+  grid-template-columns:minmax(0,1fr);
+}
+#sidebar,
+#file-preview{
+  background:rgba(13,21,32,.92);
+  border-color:var(--line);
+}
+.turn-group,
+.history-turn .history-bubble,
+.user-msg-wrap .bubble,
+.assistant-msg-wrap .bubble,
+.progress-card,
+.event-card,
+.side-section,
+.session-item,
+.file-preview-item,
+.modal-box{
+  border-color:var(--line);
+  background:rgba(21,29,40,.94);
+  color:var(--text);
+  box-shadow:0 12px 30px rgba(0,0,0,.22);
+}
+.assistant-msg-wrap .bubble,
+.event-card .body,
+.file-diff-lines,
+.modal-box .field-value,
+.modal-textarea,
+#task-input{
+  background:#0d1520;
+  color:var(--text);
+  border-color:var(--line);
+}
+.choice-button{
+  border-color:var(--line);
+  background:#0d1520;
+  color:var(--text);
+  box-shadow:none;
+}
+.choice-button:hover{
+  border-color:rgba(51,194,183,.42);
+  background:#111a25;
+  box-shadow:none;
+}
+.turn-header{
+  background:linear-gradient(135deg,#10242d,#123b3e);
+  color:var(--text);
+}
+.event-card:hover,
+.turn-group:hover,
+.session-item:hover{
+  border-color:rgba(51,194,183,.42);
+  box-shadow:0 18px 42px rgba(0,0,0,.30);
+}
+.event-card .head:hover{
+  background:rgba(51,194,183,.06);
+}
+.event-card .head .icon,
+.progress-step,
+.empty-state .shortcuts .sc-item,
+.markdown-body pre,
+.markdown-body :not(pre)>code,
+.markdown-body blockquote,
+.file-diff-label{
+  background:#111a25;
+  border-color:var(--line);
+  color:var(--muted);
+}
+.progress-step.done{
+  color:var(--green);
+  background:rgba(52,211,153,.12);
+}
+.progress-step.active{
+  color:var(--amber);
+  background:rgba(240,185,77,.14);
+}
+#task-input{
+  box-shadow:none;
+}
+#task-input::placeholder{
+  color:var(--faint);
+}
+#task-input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(51,194,183,.13);
+}
+#send-btn,
+.header-action,
+.btn-approve{
+  background:linear-gradient(180deg,#13a7a1,#0b7076);
+  color:#effffb;
+  border-color:rgba(51,194,183,.58);
+}
+#send-btn:hover:not(:disabled),
+.header-action:hover,
+.btn-approve:hover{
+  background:linear-gradient(180deg,#19bbb4,#0d7f84);
+  color:#effffb;
+}
+#send-btn:disabled{
+  background:#202b39;
+  color:var(--faint);
+}
+.btn-reject{
+  background:var(--red);
+}
+.empty-state .big{
+  box-shadow:none;
+}
 </style>
 </head>
 <body>
@@ -1743,7 +1979,7 @@ body{min-width:0}
 <!-- User Input Modal -->
 <div class="modal-overlay" id="user-input-modal">
   <div class="modal-box">
-    <h2>需要补充信息</h2>
+    <h2>需要补充信息 <span class="modal-step" id="user-input-step"></span></h2>
     <div class="field">
       <div class="field-label">问题</div>
       <div class="field-value" id="user-input-question"></div>
@@ -1752,7 +1988,11 @@ body{min-width:0}
       <div class="field-label">上下文</div>
       <div class="field-value" id="user-input-context"></div>
     </div>
-    <div class="field">
+    <div class="field" id="user-input-options-field" hidden>
+      <div class="field-label">请选择</div>
+      <div class="choice-list" id="user-input-options"></div>
+    </div>
+    <div class="field" id="user-input-answer-field">
       <div class="field-label">回复</div>
       <textarea class="modal-textarea" id="user-input-answer" placeholder="输入补充信息"></textarea>
     </div>
@@ -2960,15 +3200,19 @@ document.getElementById('btn-reject').addEventListener('click', () => {
 });
 
 function showUserInputModal(data) {
-  const questionEl = document.getElementById('user-input-question');
-  const contextEl = document.getElementById('user-input-context');
-  const answerEl = document.getElementById('user-input-answer');
-  questionEl.textContent = data.question || '';
-  contextEl.textContent = data.context || '无';
-  answerEl.value = data.default || '';
+  const items = normalizeUserInputItems(data);
+  if (!items.length) {
+    items.push({ question: '请补充信息', context: '', default: '', options: [] });
+  }
+  state.userInputPending = {
+    request_id: data.request_id,
+    items,
+    index: 0,
+    answers: [],
+    customMode: false,
+  };
   userInputModal.classList.add('open');
-  state.userInputPending = { request_id: data.request_id };
-  setTimeout(() => answerEl.focus(), 0);
+  renderUserInputStep();
 }
 
 function closeUserInputModal() {
@@ -2976,9 +3220,162 @@ function closeUserInputModal() {
   state.userInputPending = null;
 }
 
-document.getElementById('btn-user-submit').addEventListener('click', () => {
+function normalizeUserInputItems(data) {
+  const source = Array.isArray(data.questions) ? data.questions : Array.isArray(data.items) ? data.items : null;
+  if (source && source.length) {
+    return source.map((item) => normalizeUserInputItem(item, data)).filter((item) => item.question);
+  }
+  return [normalizeUserInputItem(data, data)].filter((item) => item.question);
+}
+
+function normalizeUserInputItem(item, root) {
+  if (typeof item === 'string') {
+    return parseUserInputQuestion({
+      question: item,
+      context: root.context || '',
+      default: root.default || '',
+      options: root.options || root.choices || [],
+    });
+  }
+  return parseUserInputQuestion({
+    question: item.question || item.prompt || item.title || '',
+    context: item.context || root.context || '',
+    default: item.default || item.value || '',
+    options: item.options || item.choices || item.values || [],
+  });
+}
+
+function parseUserInputQuestion(item) {
+  const explicitOptions = normalizeChoiceOptions(item.options);
+  if (explicitOptions.length) {
+    return {
+      question: String(item.question || '').trim(),
+      context: String(item.context || '').trim(),
+      default: String(item.default || ''),
+      options: explicitOptions,
+    };
+  }
+
+  const parsed = parseEmbeddedOptions(String(item.question || ''));
+  return {
+    question: parsed.question,
+    context: String(item.context || '').trim(),
+    default: String(item.default || ''),
+    options: parsed.options,
+  };
+}
+
+function normalizeChoiceOptions(options) {
+  if (!Array.isArray(options)) return [];
+  return options
+    .map((option) => {
+      if (option && typeof option === 'object') {
+        const label = option.label || option.name || option.title || option.value || '';
+        const value = option.value || label;
+        return { label: String(label).trim(), value: String(value).trim() };
+      }
+      const text = String(option || '').trim();
+      return { label: text, value: text };
+    })
+    .filter((option) => option.label);
+}
+
+function parseEmbeddedOptions(text) {
+  const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const options = [];
+  const questionLines = [];
+  for (const line of lines) {
+    const match = line.match(/^(?:[-*•]\s+|\d+[.)、]\s*|[A-Ha-h][.)、:：]\s*)(.+)$/);
+    if (match) {
+      options.push({ label: match[1].trim(), value: match[1].trim() });
+    } else {
+      questionLines.push(line.replace(/^选项[:：]\s*/, '').trim());
+    }
+  }
+  if (options.length >= 2 && questionLines.length) {
+    return { question: questionLines.join('\n'), options };
+  }
+  return { question: text.trim(), options: [] };
+}
+
+function renderUserInputStep() {
   if (!state.userInputPending) return;
-  const answer = document.getElementById('user-input-answer').value.trim();
+  const pending = state.userInputPending;
+  const item = pending.items[pending.index] || { question: '', context: '', default: '', options: [] };
+  const total = pending.items.length;
+  const questionEl = document.getElementById('user-input-question');
+  const contextEl = document.getElementById('user-input-context');
+  const stepEl = document.getElementById('user-input-step');
+  const answerEl = document.getElementById('user-input-answer');
+  const answerField = document.getElementById('user-input-answer-field');
+  const optionsField = document.getElementById('user-input-options-field');
+  const optionsEl = document.getElementById('user-input-options');
+  const submitBtn = document.getElementById('btn-user-submit');
+
+  pending.customMode = false;
+  questionEl.textContent = item.question || '';
+  contextEl.textContent = item.context || '无';
+  stepEl.textContent = total > 1 ? `${pending.index + 1} / ${total}` : '';
+  answerEl.value = item.default || '';
+
+  const choices = Array.isArray(item.options) ? item.options : [];
+  optionsEl.innerHTML = '';
+  if (choices.length) {
+    const allChoices = [...choices, { label: '用户自行补充', value: '__custom__', custom: true }];
+    for (const choice of allChoices) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'choice-button';
+      button.textContent = choice.label;
+      button.addEventListener('click', () => {
+        if (choice.custom) {
+          pending.customMode = true;
+          answerField.hidden = false;
+          submitBtn.hidden = false;
+          answerEl.value = '';
+          answerEl.focus();
+          return;
+        }
+        recordUserInputAnswer(choice.value);
+      });
+      optionsEl.appendChild(button);
+    }
+    optionsField.hidden = false;
+    answerField.hidden = true;
+    submitBtn.hidden = true;
+  } else {
+    optionsField.hidden = true;
+    answerField.hidden = false;
+    submitBtn.hidden = false;
+    setTimeout(() => answerEl.focus(), 0);
+  }
+}
+
+function recordUserInputAnswer(answer) {
+  if (!state.userInputPending) return;
+  const pending = state.userInputPending;
+  const item = pending.items[pending.index] || {};
+  pending.answers.push({
+    question: item.question || '',
+    answer: String(answer || '').trim(),
+  });
+  pending.index++;
+  if (pending.index < pending.items.length) {
+    renderUserInputStep();
+    return;
+  }
+  sendUserInputAnswer(formatUserInputAnswers(pending.answers));
+}
+
+function formatUserInputAnswers(answers) {
+  if (answers.length === 1) return answers[0].answer;
+  return answers
+    .map((item, index) => `问题 ${index + 1}：${item.question}\n回答：${item.answer}`)
+    .join('\n\n');
+}
+
+function sendUserInputAnswer(answer) {
+  if (!state.userInputPending) return;
   state.ws.send(JSON.stringify({
     type: 'user_input',
     request_id: state.userInputPending.request_id,
@@ -2986,6 +3383,12 @@ document.getElementById('btn-user-submit').addEventListener('click', () => {
     canceled: false,
   }));
   closeUserInputModal();
+}
+
+document.getElementById('btn-user-submit').addEventListener('click', () => {
+  if (!state.userInputPending) return;
+  const answer = document.getElementById('user-input-answer').value.trim();
+  recordUserInputAnswer(answer);
 });
 
 document.getElementById('btn-user-cancel').addEventListener('click', () => {
