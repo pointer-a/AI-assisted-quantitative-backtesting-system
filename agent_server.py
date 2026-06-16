@@ -68,6 +68,34 @@ from fastapi.staticfiles import StaticFiles
 
 agent_app = FastAPI(title="AI Backtester Agent")
 
+# ── HTTP Basic Auth 中间件（可选）─────────────────────────────────────────────
+# 通过 --auth user:password 或 AUTH 环境变量启用
+_AUTH_CREDENTIALS: str = ""
+
+
+def _setup_auth(credentials: str) -> None:
+    """配置 HTTP Basic Auth。credentials 格式为 user:password。"""
+    global _AUTH_CREDENTIALS
+    _AUTH_CREDENTIALS = credentials
+    if not credentials:
+        return
+
+    import base64
+
+    expected = base64.b64encode(credentials.encode()).decode()
+
+    @agent_app.middleware("http")
+    async def auth_middleware(request, call_next):
+        auth = request.headers.get("authorization", "")
+        if auth != f"Basic {expected}":
+            return Response(
+                status_code=401,
+                content="<html><body><h1>401 Unauthorized</h1><p>需要登录</p></body></html>",
+                headers={"WWW-Authenticate": 'Basic realm="AI Backtester"'},
+                media_type="text/html",
+            )
+        return await call_next(request)
+
 try:
     from agent_app.exelixi.core.agent import stream_session_events
     from agent_app.exelixi.core.approval import ApprovalDecision, ApprovalRequest, UserInputRequest, UserInputResponse
@@ -140,6 +168,15 @@ _bridge = _ApprovalBridge()
 
 @agent_app.websocket("/ws")
 async def ws_handler(ws: WebSocket) -> None:
+    # WebSocket Basic Auth 检查
+    if _AUTH_CREDENTIALS:
+        import base64
+        auth = ws.headers.get("authorization", "")
+        expected = base64.b64encode(_AUTH_CREDENTIALS.encode()).decode()
+        if auth != f"Basic {expected}":
+            await ws.close(code=4001)
+            return
+
     if not AGENT_AVAILABLE:
         await ws.accept()
         await ws.send_json({"type": "error", "message": "Agent 未安装依赖，请运行: pip install -r requirements-agent.txt"})
@@ -630,7 +667,16 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="AI 智能回测 + Agent 集成服务器")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--auth", default="",
+                        help="HTTP Basic Auth，格式 user:password（也支持 AUTH 环境变量）")
     args = parser.parse_args(argv)
+
+    auth_credentials = args.auth or os.environ.get("AUTH", "")
+    if auth_credentials:
+        _setup_auth(auth_credentials)
+        print(f"🔐 访问认证已启用（{auth_credentials.split(':')[0]}）")
+    else:
+        print("ℹ️  访问认证未启用（使用 --auth user:password 设置）")
 
     print(f"AI 智能回测 + Agent 集成服务器")
     print(f"回测前端: http://{args.host}:{args.port}")
