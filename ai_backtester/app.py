@@ -285,7 +285,9 @@ def _strategy_label(name: str) -> str:
         "rsi_reversion": "RSI 均值回归",
         "hybrid_trend_rsi": "趋势 + RSI 混合策略",
     }
-    return labels.get(name, name)
+    if name in labels:
+        return labels[name]
+    return name.replace("_", " ").strip().title() + " (Agent)"
 
 
 METRIC_LABELS = {
