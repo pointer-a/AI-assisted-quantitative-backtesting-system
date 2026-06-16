@@ -454,8 +454,14 @@ function renderReportLink() {
 
 function strategyPayload() {
   const strategy = state.selectedStrategy || defaultStrategy();
+  // Agent 生成的策略：从文件路径提取策略名（如 consecutive_rise_20min）
+  let strategyName = strategy.strategy;
+  if ((strategy.generated || strategy.fileGenerated) && strategy.filePath) {
+    const derived = String(strategy.filePath).replace(/\.py$/i, "").split(/[\\/]/).pop();
+    if (derived && derived !== "custom") strategyName = derived;
+  }
   return {
-    name: strategy.strategy,
+    name: strategyName,
     fast: Number(el.fast.value || 10),
     slow: Number(el.slow.value || 30),
     period: Number(strategy.params.period || 14),
