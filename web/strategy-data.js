@@ -47,6 +47,7 @@ const STRATEGY_LIBRARY = [
 
 const SELECTED_STRATEGY_KEY = "ai_backtester_selected_strategy";
 const USER_STRATEGIES_KEY = "ai_backtester_user_strategies";
+const GENERATED_STRATEGY_PREFIX = "agent-generated-";
 
 // 加载用户创建的策略（持久化到 localStorage）
 function loadUserStrategies() {
@@ -59,6 +60,123 @@ function loadUserStrategies() {
 
 function saveUserStrategies(list) {
   localStorage.setItem(USER_STRATEGIES_KEY, JSON.stringify(list));
+}
+
+function strategyIdFromPath(path) {
+  const text = String(path || "");
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+  return GENERATED_STRATEGY_PREFIX + Math.abs(hash).toString(36);
+}
+
+function titleFromStrategyFile(name, content) {
+  const text = String(content || "");
+  const docTitle = text.match(/^[\\s\\S]*?\"\"\"\\s*([^\\n=\\-]+)/)?.[1]?.trim();
+  if (docTitle) return docTitle.replace(/\\s*\\([^)]*\\)\\s*$/, "").trim();
+  return String(name || "agent_strategy.py")
+    .replace(/\\.py$/i, "")
+    .split("_")
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function rulesFromStrategyContent(content, path) {
+  const text = String(content || "");
+  const rules = [];
+  const core = text.match(/核心规则[\\s\\S]*?(?:使用方法|参数|作者|\"\"\"|$)/)?.[0] || "";
+  core.split(/\\r?\\n/).forEach(line => {
+    const clean = line
+      .replace(/^\\s*(?:[-*•]|\\d+[.)、]|[①②③④⑤⑥⑦⑧⑨⑩])\\s*/, "")
+      .replace(/[`*_]/g, "")
+      .trim();
+    if (clean && clean !== "核心规则" && rules.length < 4) rules.push(clean);
+  });
+  if (!rules.length) {
+    rules.push("Agent 生成策略文件", path || "Agent_strategy/");
+    rules.push("待注册到回测引擎");
+    rules.push("待运行回测验证");
+  }
+  return rules.slice(0, 4);
+}
+
+function normalizeGeneratedStrategy(input, fallbackId = "") {
+  const path = String(input.path || input.relative_path || input.filePath || "");
+  const name = String(input.name || input.fileName || path.split(/[\\\\/]/).pop() || "agent_strategy.py");
+  const content = String(input.content || input.after || "");
+  const id = String(input.id || input.strategy_id || fallbackId || strategyIdFromPath(path || name));
+  const title = String(input.title || input.strategy_name || titleFromStrategyFile(name, content) || name);
+  return {
+    id,
+    title,
+    strategy: "custom",
+    yearsText: "Agent",
+    params: {},
+    returnText: "待回测",
+    winRateText: "待回测",
+    description: `Agent 生成策略：${path || name}`,
+    rules: rulesFromStrategyContent(content, path || name),
+    fileGenerated: true,
+    generated: true,
+    filePath: path,
+    workspace: input.workspace || "",
+    sessionId: input.session_id || "",
+    updatedAt: input.updated_at || new Date().toISOString(),
+  };
+}
+
+function upsertStrategyLibraryEntry(strategy) {
+  const existingIndex = STRATEGY_LIBRARY.findIndex(item => item.id === strategy.id);
+  if (existingIndex >= 0) {
+    STRATEGY_LIBRARY[existingIndex] = { ...STRATEGY_LIBRARY[existingIndex], ...strategy };
+  } else {
+    STRATEGY_LIBRARY.unshift(strategy);
+  }
+}
+
+function upsertUserStrategy(strategy) {
+  const saved = loadUserStrategies();
+  const index = saved.findIndex(item =>
+    item.id === strategy.id ||
+    (strategy.filePath && item.filePath === strategy.filePath)
+  );
+  if (index >= 0) {
+    saved[index] = { ...saved[index], ...strategy };
+  } else {
+    saved.unshift(strategy);
+  }
+  saveUserStrategies(saved);
+}
+
+function registerGeneratedStrategy(input, fallbackId = "") {
+  const strategy = normalizeGeneratedStrategy(input, fallbackId);
+  upsertStrategyLibraryEntry(strategy);
+  upsertUserStrategy(strategy);
+  return strategy;
+}
+
+function registerGeneratedStrategyFromPreview(preview, fallbackId = "") {
+  return registerGeneratedStrategy({
+    id: fallbackId,
+    name: preview.name || preview.fileName,
+    fileName: preview.fileName || preview.name,
+    path: preview.path,
+    content: preview.content || preview.after,
+  }, fallbackId);
+}
+
+async function loadGeneratedStrategiesFromServer() {
+  try {
+    const resp = await fetch("/api/agent-strategies");
+    if (!resp.ok) return [];
+    const items = await resp.json();
+    if (!Array.isArray(items)) return [];
+    return items.map(item => registerGeneratedStrategy(item));
+  } catch {
+    return [];
+  }
 }
 
 // 清理未生成文件的空策略，将有效的合并到 STRATEGY_LIBRARY
@@ -79,13 +197,19 @@ function findStrategy(id) {
 }
 
 // 标记当前策略已有文件生成
-function markStrategyFileGenerated(strategyId) {
+function markStrategyFileGenerated(strategyId, generatedInfo = {}) {
   const saved = loadUserStrategies();
   const entry = saved.find(s => s.id === strategyId);
-  if (entry && !entry.fileGenerated) {
+  if (entry) {
     entry.fileGenerated = true;
+    Object.assign(entry, normalizeGeneratedStrategy({ ...entry, ...generatedInfo, id: strategyId }, strategyId));
     saveUserStrategies(saved);
+    upsertStrategyLibraryEntry(entry);
+    return entry;
+  } else if (strategyId || generatedInfo.path || generatedInfo.fileName || generatedInfo.name) {
+    return registerGeneratedStrategy({ ...generatedInfo, id: strategyId }, strategyId);
   }
+  return null;
 }
 
 function loadSelectedStrategy() {

@@ -666,7 +666,8 @@ def _build_planner_tools(state: ExelixiGraphState, writer) -> list[StructuredToo
             description=(
                 "Ask the user for missing information and wait for their reply. "
                 "Args: question, optional context, optional default, optional options list for clickable choices. "
-                "When choices are available, pass options as an array of short labels."
+                "When choices are available, pass options as an array of short labels. "
+                "Do not call this after the requested task is complete or verified; finish the turn instead."
             ),
         ),
     ]

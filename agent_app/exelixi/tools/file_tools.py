@@ -9,6 +9,8 @@ from exelixi.tools.human_tool import request_write_approval
 
 MAX_READ_LINES = 2000
 TEXT_ENCODINGS = ("utf-8", "utf-8-sig", "gbk")
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+AGENT_STRATEGY_ROOT = PROJECT_ROOT / "Agent_strategy"
 
 
 def _strip_workspace_prefix(file_path: str) -> str:
@@ -36,13 +38,30 @@ def read_text_lossy(path: Path) -> str:
 
 
 def resolve_workspace_path(state: RuntimeState, file_path: str) -> Path:
-    raw = Path(_strip_workspace_prefix(file_path)).expanduser()
+    normalized = _strip_workspace_prefix(file_path)
+    normalized_posix = normalized.replace("\\", "/").lstrip("./")
+    if normalized_posix == "Agent_strategy" or normalized_posix.startswith("Agent_strategy/"):
+        raw = (PROJECT_ROOT / normalized_posix).expanduser()
+        return _assert_agent_strategy_path(raw)
+    raw = Path(normalized).expanduser()
     if not raw.is_absolute():
         raw = state.workspace / raw
     return state.assert_workspace_path(raw)
 
 
+def _assert_agent_strategy_path(path: Path) -> Path:
+    resolved = path.resolve()
+    root = AGENT_STRATEGY_ROOT.resolve()
+    if resolved != root and root not in resolved.parents:
+        raise ValueError(f"path must stay inside Agent_strategy: {root}")
+    return resolved
+
+
 def display_path(state: RuntimeState, path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(PROJECT_ROOT.resolve()))
+    except ValueError:
+        pass
     try:
         return str(path.resolve().relative_to(state.workspace.resolve()))
     except ValueError:

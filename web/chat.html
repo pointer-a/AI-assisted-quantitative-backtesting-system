@@ -2015,6 +2015,7 @@ const state = {
   freshSessionRequested: false,
   strategyId: '',
   strategyName: '',
+  pendingStrategyWorkspace: '',
   internalEvents: 0,
   lastPlanSummary: '',
   approvalPending: null,
@@ -2117,19 +2118,22 @@ function setStatus(status) {
 }
 
 function setAgentContext(context = {}) {
-  const previousStrategyId = state.strategyId;
   state.strategyId = String(context.strategyId || '');
   state.strategyName = String(context.strategyName || '');
-  if (state.strategyId && state.strategyId !== previousStrategyId) {
-    openStrategySession();
+  state.pendingStrategyWorkspace = String(context.workspace || '');
+  if (state.strategyId && state.pendingStrategyWorkspace) {
+    bindStrategySession(state.strategyId, state.pendingStrategyWorkspace);
+  }
+  if (state.strategyId) {
+    openStrategySession({ forceReload: true });
   }
   emitAgentState();
 }
 
-async function openStrategySession() {
+async function openStrategySession(options = {}) {
   if (!state.strategyId) return;
-  if (!state.sessions.length) {
-    await loadSessions({ forStrategy: true });
+  if (options.forceReload || !state.sessions.length) {
+    await loadSessions({ forStrategy: true, preserveFocus: true });
     return;
   }
   if (selectBoundStrategySession({ force: true, preserveFocus: true })) return;
@@ -2154,6 +2158,16 @@ function boundStrategySessionPath(strategyId = state.strategyId) {
   return String(strategySessionBindings()[strategyId] || '');
 }
 
+function sessionStrategyId(session) {
+  return String(
+    session?.strategy_id ||
+    session?.strategyId ||
+    session?.strategy?.id ||
+    session?.metadata?.strategy_id ||
+    ''
+  );
+}
+
 function bindStrategySession(strategyId, workspacePath) {
   if (!strategyId || !workspacePath) return;
   const bindings = strategySessionBindings();
@@ -2172,7 +2186,13 @@ function bindCurrentStrategySession() {
 }
 
 function selectBoundStrategySession(options = {}) {
-  const boundPath = boundStrategySessionPath();
+  const metadataSession = state.sessions.find(item => sessionStrategyId(item) === state.strategyId);
+  const candidates = [
+    state.pendingStrategyWorkspace,
+    boundStrategySessionPath(),
+    metadataSession?.path || '',
+  ].map(item => String(item || '')).filter(Boolean);
+  const boundPath = candidates.find(path => state.sessions.some(item => item.path === path)) || '';
   if (!boundPath) return false;
   const session = state.sessions.find(item => item.path === boundPath);
   if (!session) return false;
@@ -2181,11 +2201,14 @@ function selectBoundStrategySession(options = {}) {
     preserveFocus: Boolean(options.preserveFocus),
     force: Boolean(options.force),
   });
+  bindStrategySession(state.strategyId, boundPath);
+  state.pendingStrategyWorkspace = '';
   return true;
 }
 
 function beginUnboundStrategySession() {
   state.freshSessionRequested = true;
+  state.pendingStrategyWorkspace = '';
   state.workspace = '';
   state.sessionId = '';
   state.turn = 0;
@@ -2417,6 +2440,8 @@ function sendRun(task) {
     type: 'run',
     task: task,
     workspace: state.workspace || undefined,
+    strategy_id: state.strategyId || undefined,
+    strategy_name: state.strategyName || undefined,
     approval_mode: 'inline',
     checkpoint_mode: 'light',
     trace_mode: 'on',
@@ -2455,6 +2480,10 @@ function handleEvent(data) {
   }
 
   if (type === 'error') {
+    postAgentMessage('agent:notice', {
+      title: '运行错误',
+      content: String(data.message || ''),
+    });
     addEventCard('error', 'Error', { body: data.message || '', icon: '!' });
     return;
   }
@@ -2652,12 +2681,20 @@ function handleCustomEvent(event) {
     case 'checkpoint_saved': {
       state.checkpoint = event.path || '';
       updateSidebar();
+      postAgentMessage('agent:notice', {
+        title: '检查点已保存',
+        content: `Status: ${event.status || '—'}\nPath: ${event.path || '—'}\n${event.resume_command || ''}`.trim(),
+      });
       addEventCard('checkpoint', '检查点已保存', {
         body: `Status: ${event.status}\nPath: ${event.path}\n${event.resume_command || ''}`, icon: '💾',
       });
       break;
     }
     case 'checkpoint_resumed': {
+      postAgentMessage('agent:notice', {
+        title: '检查点已恢复',
+        content: `Workspace: ${event.workspace || '—'}\nFallback: ${event.fallback || '—'}`,
+      });
       addEventCard('checkpoint', '检查点已恢复', {
         body: `Workspace: ${event.workspace}\nFallback: ${event.fallback}`, icon: '📂',
       });
@@ -3438,11 +3475,22 @@ function parseUserInputQuestion(item) {
     };
   }
 
-  const parsed = parseEmbeddedOptions([
+  const combinedText = [
     String(item.question || ''),
     String(item.context || ''),
     String(item.default || ''),
-  ].filter(Boolean).join('\n'));
+  ].filter(Boolean).join('\n');
+  const inferredOptions = inferChoiceOptionsFromText(combinedText);
+  if (inferredOptions.length) {
+    return {
+      question: String(item.question || '').trim() || '请选择一种处理方式',
+      context: String(item.context || '').trim(),
+      default: String(item.default || ''),
+      options: inferredOptions,
+    };
+  }
+
+  const parsed = parseEmbeddedOptions(combinedText);
   const rawQuestion = String(item.question || '').trim();
   return {
     question: parsed.question || rawQuestion,
@@ -3499,9 +3547,9 @@ function parseEmbeddedOptions(text) {
   const options = [];
   const questionLines = [];
   for (const line of lines) {
-    const match = line.match(/^(?:[-*•]\s+|\d+[.)、]\s*|[A-Ha-h][.)、:：]\s*)(.+)$/);
-    if (match) {
-      options.push({ label: match[1].trim(), value: match[1].trim() });
+    const choice = choiceFromLine(line);
+    if (choice) {
+      options.push(choice);
     } else {
       questionLines.push(line.replace(/^选项[:：]\s*/, '').trim());
     }
@@ -3510,6 +3558,55 @@ function parseEmbeddedOptions(text) {
     return { question: questionLines.join('\n'), options };
   }
   return { question: raw, options: [] };
+}
+
+function inferChoiceOptionsFromText(text) {
+  const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const choices = [];
+  for (const line of lines) {
+    const choice = choiceFromLine(line);
+    if (choice) choices.push(choice);
+  }
+  return dedupeChoiceOptions(choices);
+}
+
+function choiceFromLine(line) {
+  const raw = String(line || '').trim();
+  if (!raw) return null;
+  const markerPattern = /^(?:[-*•]\s*)?(?:(?:\d+\ufe0f?\u20e3)|[①②③④⑤⑥⑦⑧⑨⑩]|(?:方案|选项)\s*[一二三四五六七八九十A-Ha-h\d]+|[A-Ha-h]|\d+)\s*[.)、:：-]?\s*(.+)$/u;
+  const match = raw.match(markerPattern);
+  if (!match) return null;
+  const text = cleanupChoiceText(match[1]);
+  if (!text) return null;
+  const label = choiceLabelFromText(text);
+  return { label, value: text };
+}
+
+function cleanupChoiceText(text) {
+  return String(text || '')
+    .replace(/^#+\s*/, '')
+    .replace(/\*\*/g, '')
+    .replace(/[`*_]/g, '')
+    .replace(/^[：:，,\-\s]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function choiceLabelFromText(text) {
+  const clean = cleanupChoiceText(text);
+  const split = clean.match(/^(.{1,64}?)(?:[:：。；;，,]| - | -- )/);
+  const label = (split ? split[1] : clean).trim();
+  return label.length > 48 ? `${label.slice(0, 47)}…` : label;
+}
+
+function dedupeChoiceOptions(options) {
+  const seen = new Set();
+  return options.filter((option) => {
+    const key = String(option.value || option.label || '').trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function parseOptionsText(text) {

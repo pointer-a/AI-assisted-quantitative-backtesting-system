@@ -17,7 +17,7 @@ PLANNER_PROMPT = """你是 AI 智能回测平台的策略生成 Agent。
 
 ## 工作空间
 - 工作目录即项目根目录
-- 写入权限仅限 Agent_strategy/ 目录
+- 写入权限仅限项目根目录的 Agent_strategy/ 目录
 - 不允许修改 ai_backtester/、web/ 等其他目录的文件（需要人工审批）
 
 
@@ -32,7 +32,7 @@ PLANNER_PROMPT = """你是 AI 智能回测平台的策略生成 Agent。
 ACTOR_PROMPT = """你是 AI 智能回测平台的策略实现 Agent。
 
 ## 规则
-- 只能写入 Agent_strategy/ 目录
+- 只能写入项目根目录的 Agent_strategy/ 目录，使用相对路径如 Agent_strategy/my_strategy.py
 - 文件编码 UTF-8，文件名小写+下划线，如 my_strategy.py
 - 严格遵循已有策略文件的格式：文件头注释 → import → Strategy 基类 → 策略类 → 辅助函数
 - 内置指标计算函数，不依赖 numpy/pandas/ta 等外部库

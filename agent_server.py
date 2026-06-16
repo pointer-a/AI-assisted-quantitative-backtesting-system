@@ -71,6 +71,7 @@ agent_app = FastAPI(title="AI Backtester Agent")
 try:
     from agent_app.exelixi.core.agent import stream_session_events
     from agent_app.exelixi.core.approval import ApprovalDecision, ApprovalRequest, UserInputRequest, UserInputResponse
+    from agent_app.exelixi.core.session import load_or_create_session, save_session
 
     AGENT_AVAILABLE = True
 except ImportError:
@@ -161,6 +162,9 @@ async def ws_handler(ws: WebSocket) -> None:
             task: str = data.get("task", "")
             workspace_raw: str | None = data.get("workspace")
             session_workspace = _resolve_agent_conversation_workspace(workspace_raw)
+            strategy_id = str(data.get("strategy_id") or "")
+            strategy_name = str(data.get("strategy_name") or "")
+            _bind_workspace_strategy(session_workspace, strategy_id, strategy_name)
 
             def run_in_thread(task=task, sw=session_workspace) -> None:
                 try:
@@ -260,6 +264,29 @@ async def list_workspaces() -> list[dict[str, Any]]:
     return sorted(entries, key=lambda item: str(item.get("updated_at", "")), reverse=True)
 
 
+@agent_app.get("/api/agent-strategies")
+async def list_agent_strategies() -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    builtin_names = {"buy_hold.py", "sma_cross.py", "rsi_reversion.py", "hybrid_trend_rsi.py"}
+    if AGENT_STRATEGY_ROOT.is_dir():
+        for path in sorted(AGENT_STRATEGY_ROOT.glob("*.py")):
+            if path.name in builtin_names:
+                continue
+            entries.append(_agent_strategy_info(path, workspace=None, session_info={}))
+
+    if AGENT_WORKSPACE.is_dir():
+        for workspace in sorted(AGENT_WORKSPACE.iterdir()):
+            if not workspace.is_dir() or workspace.name.startswith("."):
+                continue
+            session_info = _workspace_session_info(workspace)
+            strategy_dir = workspace / "Agent_strategy"
+            if not strategy_dir.is_dir():
+                continue
+            for path in sorted(strategy_dir.glob("*.py")):
+                entries.append(_agent_strategy_info(path, workspace=workspace, session_info=session_info))
+    return sorted(entries, key=lambda item: str(item.get("updated_at", "")), reverse=True)
+
+
 def _resolve_agent_conversation_workspace(workspace_raw: str | None) -> Path:
     """Resume an existing conversation folder, or create a new one under workspace/."""
     AGENT_WORKSPACE.mkdir(parents=True, exist_ok=True)
@@ -302,6 +329,8 @@ def _workspace_session_info(workspace: Path) -> dict[str, Any]:
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(workspace.stat().st_mtime)),
         "last_route": "",
         "last_task": "",
+        "strategy_id": "",
+        "strategy_name": "",
         "recent_turns": [],
     }
     session_file = workspace / ".exelixi" / "session" / "session.json"
@@ -318,15 +347,51 @@ def _workspace_session_info(workspace: Path) -> dict[str, Any]:
         recent_turns = []
     last_task = str(raw.get("last_task", "") or "")
     info.update({
-        "title": last_task[:80] or str(raw.get("session_id", "") or "") or workspace.name,
+        "title": last_task[:80] or str(raw.get("strategy_name", "") or "") or str(raw.get("session_id", "") or "") or workspace.name,
         "session_id": str(raw.get("session_id", "") or ""),
         "turn_index": int(raw.get("turn_index") or 0),
         "updated_at": str(raw.get("updated_at", "") or info["updated_at"]),
         "last_route": str(raw.get("last_route", "") or ""),
         "last_task": last_task,
+        "strategy_id": str(raw.get("strategy_id", "") or ""),
+        "strategy_name": str(raw.get("strategy_name", "") or ""),
         "recent_turns": recent_turns[-8:],
     })
     return info
+
+
+def _agent_strategy_info(path: Path, *, workspace: Path | None, session_info: dict[str, Any]) -> dict[str, Any]:
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        content = ""
+    try:
+        stat = path.stat()
+        updated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(stat.st_mtime))
+    except OSError:
+        updated_at = ""
+    return {
+        "name": path.name,
+        "path": str(path),
+        "relative_path": str(path.relative_to(PROJECT_ROOT)) if path.is_relative_to(PROJECT_ROOT) else str(path),
+        "workspace": str(workspace) if workspace else "",
+        "strategy_id": str(session_info.get("strategy_id", "") or ""),
+        "strategy_name": str(session_info.get("strategy_name", "") or ""),
+        "session_id": str(session_info.get("session_id", "") or ""),
+        "updated_at": updated_at,
+        "content": content[:12000],
+    }
+
+
+def _bind_workspace_strategy(workspace: Path, strategy_id: str, strategy_name: str) -> None:
+    if not strategy_id and not strategy_name:
+        return
+    session = load_or_create_session(workspace)
+    if strategy_id:
+        session["strategy_id"] = strategy_id
+    if strategy_name:
+        session["strategy_name"] = strategy_name
+    save_session(workspace, session)
 
 
 # ── 回测 API (FastAPI 路由) ──────────────────────────────────────────────────

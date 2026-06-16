@@ -663,7 +663,9 @@ canvas {
 }
 
 .strategy-preview-area {
-  position: relative;
+  display: grid;
+  gap: 14px;
+  align-content: start;
   min-height: 500px;
 }
 
@@ -784,18 +786,13 @@ canvas {
 }
 
 .file-preview {
-  display: none;
-  position: absolute;
-  top: 9%;
-  left: 8%;
-  width: min(720px, 72%);
-  height: 60%;
-  min-width: 360px;
-  z-index: 20;
+  display: flex;
+  width: 100%;
+  min-height: 270px;
+  max-height: 420px;
   border: 1px solid rgba(51, 194, 183, .62);
   border-radius: 8px;
   background: rgba(11, 17, 25, .98);
-  box-shadow: 0 20px 58px rgba(0, 0, 0, .58);
   flex-direction: column;
   overflow: hidden;
 }
@@ -963,8 +960,7 @@ canvas {
   }
 
   .file-preview {
-    left: 4%;
-    width: 92%;
+    width: 100%;
     min-width: 0;
   }
 }

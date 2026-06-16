@@ -69,12 +69,18 @@ def _normalize_options(options: Any) -> list[str]:
                 return parsed_options
         except json.JSONDecodeError:
             pass
+        text = re.sub(r"^[\s#>*•\-]+", "", text)
         text = re.sub(r"^(?:选项|可选项|choices?|options?)\s*[:：]\s*", "", text, flags=re.IGNORECASE)
         parts = [
-            part.strip(" \t\r\n\"'“”‘’")
+            part.strip(" \t\r\n\"'“”‘’*`")
             for part in re.split(r"\s*(?:[,，、;；|/]|或|还是)\s*", text)
         ]
-        return [part for part in parts if part]
+        normalized = [part for part in parts if part]
+        if len(normalized) < 2:
+            numbered = _normalize_numbered_lines(text)
+            if numbered:
+                return numbered
+        return _dedupe_options(normalized)
     if isinstance(options, dict):
         for key in ("options", "choices", "values"):
             if key in options:
@@ -85,8 +91,38 @@ def _normalize_options(options: Any) -> list[str]:
         normalized: list[str] = []
         for option in options:
             normalized.extend(_normalize_options(option) if isinstance(option, (dict, list, tuple, set)) else [str(option).strip()])
-        return [option for option in normalized if option]
+        return _dedupe_options([option for option in normalized if option])
     return [str(options).strip()]
+
+
+def _normalize_numbered_lines(text: str) -> list[str]:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    if not lines:
+        return []
+    options: list[str] = []
+    for line in lines:
+        match = re.match(
+            r"^(?:[-*•]\s*)?(?:(?:\d+\ufe0f?\u20e3)|[①②③④⑤⑥⑦⑧⑨⑩]|(?:方案|选项)\s*[一二三四五六七八九十A-Ha-h\d]+|[A-Ha-h]|\d+)\s*[.)、:：-]?\s*(.+)$",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            value = re.sub(r"[\s*`]+", " ", match.group(1)).strip()
+            if value:
+                options.append(value)
+    return _dedupe_options(options) if len(options) >= 1 else []
+
+
+def _dedupe_options(options: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for option in options:
+        value = str(option or "").strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
 
 
 def request_write_approval(

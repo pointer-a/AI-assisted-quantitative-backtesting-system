@@ -52,6 +52,16 @@ pageEl.newBtn?.addEventListener("click", () => {
 
 renderList();
 renderDetail(pageState.selected);
+refreshGeneratedStrategyLibrary();
+
+async function refreshGeneratedStrategyLibrary() {
+  if (typeof loadGeneratedStrategiesFromServer !== "function") return;
+  const generated = await loadGeneratedStrategiesFromServer();
+  if (!generated.length) return;
+  pageState.selected = findStrategy(pageState.selected.id);
+  renderList();
+  renderDetail(pageState.selected);
+}
 
 function renderList() {
   pageEl.list.innerHTML = STRATEGY_LIBRARY.map((strategy) => `

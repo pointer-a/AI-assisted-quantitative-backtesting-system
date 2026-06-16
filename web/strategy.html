@@ -19,7 +19,7 @@
       <button id="newStrategyBtn" class="new-strategy-btn" type="button">新建策略</button>
     </aside>
 
-    <!-- 中栏：策略详情 + 浮动文件预览 -->
+    <!-- 中栏：策略详情 + Agent 面板 -->
     <section class="strategy-detail">
       <header class="strategy-detail-head">
         <div>
@@ -48,15 +48,15 @@
         </article>
       </section>
 
-      <!-- 策略规则 + 浮动文件预览 -->
+      <!-- 策略规则 + Agent 面板 -->
       <div class="strategy-preview-area">
         <section class="rule-canvas" id="ruleCanvas"></section>
         <div id="filePreview" class="file-preview">
           <div class="file-preview-head">
-            <span id="filePreviewName">—</span>
+            <span id="filePreviewName">Agent 面板</span>
             <button id="filePreviewClose" type="button" class="fp-close-btn">&times;</button>
           </div>
-          <div class="file-preview-hint" id="filePreviewHint">Agent 创建策略文件后，点击文件即可在此预览代码</div>
+          <div class="file-preview-hint" id="filePreviewHint">Agent 的文件预览、权限确认和运行提示会显示在这里</div>
           <pre id="filePreviewContent" class="file-preview-body"></pre>
           <div class="approval-actions" id="approvalActions" hidden>
             <button id="approvalRejectButton" class="approval-button reject" type="button">拒绝</button>
@@ -84,6 +84,7 @@
   <!-- Agent 桥接 -->
   <script>
     // 当前选中的策略 ID，传递给 Agent 作为对话上下文
+    const STRATEGY_AGENT_SESSION_KEY = "ai_backtester_agent_strategy_sessions";
     let currentStrategyId = null;
     let currentApprovalRequest = null;
 
@@ -95,7 +96,25 @@
         showFilePreview(msg.name || msg.fileName || "file", msg.content || msg.after || "");
         // Agent 生成文件后标记当前策略为有效
         if (currentStrategyId && typeof markStrategyFileGenerated === "function") {
-          markStrategyFileGenerated(currentStrategyId);
+          const targetId = strategyGenerationTargetId();
+          const strategy = markStrategyFileGenerated(targetId, {
+            name: msg.name || msg.fileName,
+            fileName: msg.fileName || msg.name,
+            path: msg.path,
+            content: msg.content || msg.after || "",
+          });
+          refreshStrategyListAfterGenerated(strategy?.id || targetId);
+        }
+      }
+      if (msg?.type === "strategy-created") {
+        if (typeof registerGeneratedStrategy === "function") {
+          const targetId = strategyGenerationTargetId();
+          const strategy = registerGeneratedStrategy({
+            id: targetId,
+            name: msg.name,
+            path: msg.path,
+          }, targetId);
+          refreshStrategyListAfterGenerated(strategy.id);
         }
       }
       if (msg?.type === "agent:approval-request") {
@@ -107,17 +126,64 @@
           hideApprovalActions();
         }
       }
+      if (msg?.type === "agent:notice") {
+        showAgentNotice(msg);
+      }
       if (msg?.type === "agent:file-previews") {
         window.latestAgentFilePreviews = Array.isArray(msg.items) ? msg.items : [];
       }
+      if (msg?.type === "agent:strategy-session-bound") {
+        rememberStrategyAgentWorkspace(msg.strategyId || currentStrategyId, msg.workspace || "");
+      }
       if (msg?.type === "agent:state") {
         if (msg.status) updateAgentStatus(msg.status);
+        if (msg.strategyId && msg.workspace) {
+          rememberStrategyAgentWorkspace(msg.strategyId, msg.workspace);
+        }
         window.latestAgentState = msg;
       }
       if (msg?.type === "agent-status") {
         updateAgentStatus(msg.status || "disconnected");
       }
     });
+
+    function strategyAgentSessionBindings() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STRATEGY_AGENT_SESSION_KEY) || "{}");
+        return raw && typeof raw === "object" ? raw : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function rememberStrategyAgentWorkspace(strategyId, workspace) {
+      if (!strategyId || !workspace) return;
+      const bindings = strategyAgentSessionBindings();
+      bindings[strategyId] = workspace;
+      localStorage.setItem(STRATEGY_AGENT_SESSION_KEY, JSON.stringify(bindings));
+    }
+
+    function boundAgentWorkspace(strategyId) {
+      if (!strategyId) return "";
+      return String(strategyAgentSessionBindings()[strategyId] || "");
+    }
+
+    function refreshStrategyListAfterGenerated(strategyId) {
+      if (typeof pageState === "undefined") return;
+      if (strategyId) pageState.selected = findStrategy(strategyId);
+      if (typeof renderList === "function") renderList();
+      if (typeof renderDetail === "function") renderDetail(pageState.selected);
+    }
+
+    function strategyGenerationTargetId() {
+      if (!currentStrategyId) return "";
+      if (String(currentStrategyId).startsWith("new-")) return currentStrategyId;
+      if (typeof loadUserStrategies === "function") {
+        const saved = loadUserStrategies();
+        if (saved.some(item => item.id === currentStrategyId)) return currentStrategyId;
+      }
+      return "";
+    }
 
     function showFilePreview(name, content) {
       const el = document.getElementById("filePreview");
@@ -128,6 +194,19 @@
       hideApprovalActions();
       nameEl.textContent = "Agent_strategy/" + name;
       contentEl.textContent = content || "";
+      if (hintEl) hintEl.hidden = true;
+      el.classList.add("open");
+    }
+
+    function showAgentNotice(notice) {
+      const el = document.getElementById("filePreview");
+      const nameEl = document.getElementById("filePreviewName");
+      const contentEl = document.getElementById("filePreviewContent");
+      const hintEl = document.getElementById("filePreviewHint");
+      if (!el || !nameEl || !contentEl) return;
+      hideApprovalActions();
+      nameEl.textContent = notice.title || "Agent 提示";
+      contentEl.textContent = notice.content || notice.body || "";
       if (hintEl) hintEl.hidden = true;
       el.classList.add("open");
     }
@@ -162,8 +241,12 @@
 
     function hideFilePreview() {
       const el = document.getElementById("filePreview");
+      const nameEl = document.getElementById("filePreviewName");
+      const contentEl = document.getElementById("filePreviewContent");
       const hintEl = document.getElementById("filePreviewHint");
       if (el) el.classList.remove("open");
+      if (nameEl) nameEl.textContent = "Agent 面板";
+      if (contentEl) contentEl.textContent = "";
       if (hintEl) hintEl.hidden = false;
       hideApprovalActions();
     }
@@ -203,12 +286,14 @@
     // 发送策略上下文到 Agent iframe
     function sendStrategyToAgent(strategyId, strategyName) {
       currentStrategyId = strategyId;
+      const workspace = boundAgentWorkspace(strategyId);
       const frame = document.getElementById("chatFrame");
       if (frame && frame.contentWindow) {
         frame.contentWindow.postMessage({
           type: "set-strategy",
           strategyId: strategyId,
           strategyName: strategyName,
+          workspace: workspace,
         }, window.location.origin);
         frame.contentWindow.postMessage({ type: "agent:get-file-previews" }, window.location.origin);
       }
