@@ -396,7 +396,7 @@ def _bind_workspace_strategy(workspace: Path, strategy_id: str, strategy_name: s
 
 # ── 回测 API (FastAPI 路由) ──────────────────────────────────────────────────
 from fastapi import Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 
 @agent_app.post("/api/prices")
@@ -458,7 +458,7 @@ async def api_job_stream(job_id: str, request: Request) -> Response:
                 return
             await asyncio.sleep(0.8)
 
-    return Response(generate(), media_type="application/x-ndjson; charset=utf-8")
+    return StreamingResponse(generate(), media_type="application/x-ndjson; charset=utf-8")
 
 
 @agent_app.get("/api/markets")
