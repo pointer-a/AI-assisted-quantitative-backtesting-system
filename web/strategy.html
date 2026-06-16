@@ -85,13 +85,20 @@
     window.addEventListener("message", (event) => {
       if (event.origin !== window.location.origin) return;
       const msg = event.data;
-      if (msg?.type === "preview-file") {
-        // 在中栏浮动窗口显示文件内容
-        showFilePreview(msg.name || "file", msg.content || "");
+      if (msg?.type === "preview-file" || msg?.type === "agent:file-preview") {
+        // 在中栏浮动窗口显示文件内容。Agent 只暴露数据，预览 UI 由父页面接管。
+        showFilePreview(msg.name || msg.fileName || "file", msg.content || msg.after || "");
         // Agent 生成文件后标记当前策略为有效
         if (currentStrategyId && typeof markStrategyFileGenerated === "function") {
           markStrategyFileGenerated(currentStrategyId);
         }
+      }
+      if (msg?.type === "agent:file-previews") {
+        window.latestAgentFilePreviews = Array.isArray(msg.items) ? msg.items : [];
+      }
+      if (msg?.type === "agent:state") {
+        if (msg.status) updateAgentStatus(msg.status);
+        window.latestAgentState = msg;
       }
       if (msg?.type === "agent-status") {
         updateAgentStatus(msg.status || "disconnected");
@@ -137,8 +144,16 @@
           strategyId: strategyId,
           strategyName: strategyName,
         }, window.location.origin);
+        frame.contentWindow.postMessage({ type: "agent:get-file-previews" }, window.location.origin);
       }
     }
+
+    document.getElementById("chatFrame")?.addEventListener("load", () => {
+      const frame = document.getElementById("chatFrame");
+      if (!frame?.contentWindow) return;
+      frame.contentWindow.postMessage({ type: "agent:get-state" }, window.location.origin);
+      frame.contentWindow.postMessage({ type: "agent:get-file-previews" }, window.location.origin);
+    });
   </script>
 </body>
 </html>

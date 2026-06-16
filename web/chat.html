@@ -15,7 +15,7 @@ body{
   display:flex;flex-direction:column;
 }
 /* 隐藏 MokioAgent 原生 chrome，只保留对话框 */
-#header,#session-bar,#sidebar,#file-preview{display:none!important}
+#header,#session-bar,#sidebar{display:none!important}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:#101113}
 ::-webkit-scrollbar-thumb{background:#3f474b;border-radius:3px}
@@ -1898,14 +1898,6 @@ body{
 
 <!-- Main -->
 <div id="main">
-  <aside id="file-preview" hidden>
-    <div class="side-section">
-      <h3>文件预览</h3>
-      <div id="file-preview-list">
-        <div class="file-preview-empty">生成文件或修改文件后，会在这里显示对照。</div>
-      </div>
-    </div>
-  </aside>
   <div id="events">
     <div class="empty-state" id="empty-state">
       <div class="big">MC</div>
@@ -2021,6 +2013,8 @@ const state = {
   filePreviews: [],
   sessions: [],
   freshSessionRequested: false,
+  strategyId: '',
+  strategyName: '',
   internalEvents: 0,
   lastPlanSummary: '',
   approvalPending: null,
@@ -2037,11 +2031,31 @@ const eventsEl = $('events');
 const emptyState = $('empty-state');
 const sessionBar = $('session-bar');
 const sessionIdDisplay = $('session-id-display');
-const filePreviewList = $('file-preview-list');
 const taskInput = $('task-input');
 const sendBtn = $('send-btn');
 const statusBadge = $('status-badge');
 const sessionListEl = $('session-list');
+
+window.AgentBridge = {
+  getState: () => agentPublicState(),
+  getFilePreviews: () => state.filePreviews.map(serializeFilePreview),
+  setContext: (context = {}) => setAgentContext(context),
+  requestSnapshot: () => emitAgentState(),
+};
+
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin) return;
+  const msg = event.data || {};
+  if (msg.type === 'set-strategy') {
+    setAgentContext({ strategyId: msg.strategyId, strategyName: msg.strategyName });
+  }
+  if (msg.type === 'agent:get-file-previews') {
+    updateFilePreview();
+  }
+  if (msg.type === 'agent:get-state') {
+    emitAgentState();
+  }
+});
 
 // ── Connection ──────────────────────────────────────────────────────────
 function connect() {
@@ -2091,6 +2105,54 @@ function setStatus(status) {
   try {
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: 'agent-status', status: status }, window.location.origin);
+    }
+  } catch (_) {}
+  emitAgentState();
+}
+
+function setAgentContext(context = {}) {
+  state.strategyId = String(context.strategyId || '');
+  state.strategyName = String(context.strategyName || '');
+  emitAgentState();
+}
+
+function agentPublicState() {
+  return {
+    connected: state.connected,
+    running: state.running,
+    status: state.running ? 'running' : state.connected ? 'connected' : 'disconnected',
+    turn: state.turn,
+    sessionId: state.sessionId,
+    workspace: state.workspace,
+    route: state.route,
+    strategyId: state.strategyId,
+    strategyName: state.strategyName,
+    filePreviews: state.filePreviews.map(serializeFilePreview),
+  };
+}
+
+function emitAgentState() {
+  postAgentMessage('agent:state', agentPublicState());
+}
+
+function serializeFilePreview(item) {
+  return {
+    toolName: item.toolName || '',
+    path: item.path || '',
+    name: item.fileName || item.name || '',
+    fileName: item.fileName || item.name || '',
+    action: item.action || '',
+    meta: item.meta || '',
+    before: item.before || '',
+    after: item.after || '',
+    content: item.after || '',
+  };
+}
+
+function postAgentMessage(type, payload = {}) {
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type, ...payload }, window.location.origin);
     }
   } catch (_) {}
 }
@@ -2667,7 +2729,7 @@ function captureFilePreview(toolName, result) {
   const filePath = String(result.path || fileName);
   const action = result.type === 'create' ? '生成' : '修改';
   const parsed = parseUnifiedDiff(result.diff || '');
-  state.filePreviews.unshift({
+  const item = {
     toolName,
     path: filePath,
     fileName,
@@ -2675,30 +2737,18 @@ function captureFilePreview(toolName, result) {
     meta: result.lines !== undefined ? `${result.lines} 行` : result.replacements !== undefined ? `${result.replacements} 处替换` : '',
     before: parsed.before,
     after: parsed.after,
-  });
+  };
+  state.filePreviews.unshift(item);
   state.filePreviews = state.filePreviews.slice(0, 12);
   updateFilePreview();
 
-  // 通知父页面：文件已创建/修改（用于中栏浮动预览）
-  try {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({
-        type: 'preview-file',
-        name: fileName,
-        path: filePath,
-        content: parsed.after,
-        action: action,
-      }, window.location.origin);
-      // 如果文件在 Agent_strategy/ 目录下，发送策略创建通知
-      if (filePath.includes('Agent_strategy') && action === '生成') {
-        window.parent.postMessage({
-          type: 'strategy-created',
-          name: fileName,
-          path: filePath,
-        }, window.location.origin);
-      }
-    }
-  } catch (_) { /* 跨域时静默 */ }
+  const preview = serializeFilePreview(item);
+  postAgentMessage('agent:file-preview', preview);
+  // Backward compatibility for the existing strategy page bridge.
+  postAgentMessage('preview-file', preview);
+  if (filePath.includes('Agent_strategy') && action === '生成') {
+    postAgentMessage('strategy-created', { name: fileName, path: filePath });
+  }
 }
 function parseUnifiedDiff(diff) {
   const before = [];
@@ -2721,29 +2771,9 @@ function parseUnifiedDiff(diff) {
   };
 }
 function updateFilePreview() {
-  if (!filePreviewList) return;
-  if (!state.filePreviews.length) {
-    filePreviewList.innerHTML = '<div class="file-preview-empty">生成文件或修改文件后，会在这里显示对照。</div>';
-    return;
-  }
-  filePreviewList.innerHTML = state.filePreviews.map(item => `
-    <div class="file-preview-item">
-      <div class="file-preview-head">
-        <div class="file-preview-title" title="${escapeAttr(item.path)}">${escapeHtml(item.fileName)}</div>
-        <div class="file-preview-meta">${escapeHtml(item.action)}${item.meta ? ' · ' + escapeHtml(item.meta) : ''}</div>
-      </div>
-      <div class="file-diff-grid">
-        <div class="file-diff-col">
-          <div class="file-diff-label">修改前</div>
-          <pre class="file-diff-lines removed">${escapeHtml(item.before)}</pre>
-        </div>
-        <div class="file-diff-col">
-          <div class="file-diff-label">修改后</div>
-          <pre class="file-diff-lines added">${escapeHtml(item.after)}</pre>
-        </div>
-      </div>
-    </div>
-  `).join('');
+  postAgentMessage('agent:file-previews', {
+    items: state.filePreviews.map(serializeFilePreview),
+  });
 }
 function shrink(value, limit = 260) {
   const text = typeof value === 'string' ? value : JSON.stringify(value);
