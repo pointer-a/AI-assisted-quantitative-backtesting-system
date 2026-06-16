@@ -2035,11 +2035,14 @@ const taskInput = $('task-input');
 const sendBtn = $('send-btn');
 const statusBadge = $('status-badge');
 const sessionListEl = $('session-list');
+const STRATEGY_SESSION_BINDINGS_KEY = 'ai_backtester_agent_strategy_sessions';
 
 window.AgentBridge = {
   getState: () => agentPublicState(),
   getFilePreviews: () => state.filePreviews.map(serializeFilePreview),
   setContext: (context = {}) => setAgentContext(context),
+  bindCurrentSession: () => bindCurrentStrategySession(),
+  resolveApproval: (requestId, approved, reason = "") => resolveApprovalRequest(requestId, approved, reason),
   requestSnapshot: () => emitAgentState(),
 };
 
@@ -2054,6 +2057,9 @@ window.addEventListener('message', (event) => {
   }
   if (msg.type === 'agent:get-state') {
     emitAgentState();
+  }
+  if (msg.type === 'agent:approval') {
+    resolveApprovalRequest(msg.request_id || msg.requestId, Boolean(msg.approved), msg.reason || "");
   }
 });
 
@@ -2111,9 +2117,103 @@ function setStatus(status) {
 }
 
 function setAgentContext(context = {}) {
+  const previousStrategyId = state.strategyId;
   state.strategyId = String(context.strategyId || '');
   state.strategyName = String(context.strategyName || '');
+  if (state.strategyId && state.strategyId !== previousStrategyId) {
+    openStrategySession();
+  }
   emitAgentState();
+}
+
+async function openStrategySession() {
+  if (!state.strategyId) return;
+  if (!state.sessions.length) {
+    await loadSessions({ forStrategy: true });
+    return;
+  }
+  if (selectBoundStrategySession({ force: true, preserveFocus: true })) return;
+  beginUnboundStrategySession();
+}
+
+function strategySessionBindings() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STRATEGY_SESSION_BINDINGS_KEY) || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveStrategySessionBindings(bindings) {
+  localStorage.setItem(STRATEGY_SESSION_BINDINGS_KEY, JSON.stringify(bindings || {}));
+}
+
+function boundStrategySessionPath(strategyId = state.strategyId) {
+  if (!strategyId) return '';
+  return String(strategySessionBindings()[strategyId] || '');
+}
+
+function bindStrategySession(strategyId, workspacePath) {
+  if (!strategyId || !workspacePath) return;
+  const bindings = strategySessionBindings();
+  bindings[strategyId] = workspacePath;
+  saveStrategySessionBindings(bindings);
+  postAgentMessage('agent:strategy-session-bound', {
+    strategyId,
+    strategyName: state.strategyName,
+    workspace: workspacePath,
+  });
+}
+
+function bindCurrentStrategySession() {
+  if (!state.strategyId || !state.workspace) return;
+  bindStrategySession(state.strategyId, state.workspace);
+}
+
+function selectBoundStrategySession(options = {}) {
+  const boundPath = boundStrategySessionPath();
+  if (!boundPath) return false;
+  const session = state.sessions.find(item => item.path === boundPath);
+  if (!session) return false;
+  selectSession(boundPath, {
+    fromLoad: true,
+    preserveFocus: Boolean(options.preserveFocus),
+    force: Boolean(options.force),
+  });
+  return true;
+}
+
+function beginUnboundStrategySession() {
+  state.freshSessionRequested = true;
+  state.workspace = '';
+  state.sessionId = '';
+  state.turn = 0;
+  state.route = '';
+  state.toolCalls = 0;
+  state.failedTools = 0;
+  state.approvals = 0;
+  state.checkpoint = '';
+  state.todos = [];
+  state.filePreviews = [];
+  state.currentTurnEl = null;
+  state.currentEventsEl = null;
+  state.currentProgressEl = null;
+  state.currentInternalBodyEl = null;
+  updateSidebar();
+  updateFilePreview();
+  renderSessionList();
+  sessionIdDisplay.textContent = '—';
+  sessionBar.classList.remove('show');
+  clearConversation({ showEmpty: true });
+  if (emptyState) {
+    const title = emptyState.querySelector('.title');
+    const hint = emptyState.querySelector('.hint');
+    if (title) title.textContent = state.strategyName ? `${state.strategyName} · 新会话` : '准备接收任务';
+    if (hint) hint.textContent = state.strategyName
+      ? '此策略还没有绑定历史对话，输入目标后会自动绑定。'
+      : '输入一个目标后，执行过程会在这里展开。';
+  }
 }
 
 function agentPublicState() {
@@ -2127,6 +2227,7 @@ function agentPublicState() {
     route: state.route,
     strategyId: state.strategyId,
     strategyName: state.strategyName,
+    approvalPending: state.approvalPending ? serializeApprovalRequest(state.approvalPending) : null,
     filePreviews: state.filePreviews.map(serializeFilePreview),
   };
 }
@@ -2146,6 +2247,18 @@ function serializeFilePreview(item) {
     before: item.before || '',
     after: item.after || '',
     content: item.after || '',
+  };
+}
+
+function serializeApprovalRequest(item) {
+  return {
+    request_id: item.request_id || "",
+    requestId: item.request_id || "",
+    toolName: item.tool_name || item.toolName || "BashTool",
+    tool_name: item.tool_name || item.toolName || "BashTool",
+    command: item.command || "",
+    riskReason: item.risk_reason || item.riskReason || "",
+    risk_reason: item.risk_reason || item.riskReason || "",
   };
 }
 
@@ -2316,6 +2429,7 @@ function handleEvent(data) {
 
   if (type === 'workspace') {
     state.workspace = data.path || '';
+    bindCurrentStrategySession();
     updateSidebar();
     return;
   }
@@ -2416,6 +2530,7 @@ function handleCustomEvent(event) {
       state.sessionId = event.session_id || '';
       state.turn = event.turn_index || 0;
       state.workspace = event.workspace || state.workspace;
+      bindCurrentStrategySession();
       updateSidebar();
       renderSessionList();
       // Show session bar
@@ -2435,6 +2550,7 @@ function handleCustomEvent(event) {
       updateRouteDisplay(state.route);
       updateCurrentTurnLabel();
       updateProgress('final', '结果已保存，正在刷新对话。');
+      bindCurrentStrategySession();
       loadSessions({ refreshActive: true });
       break;
     }
@@ -3020,6 +3136,11 @@ async function loadSessions(options = {}) {
         return;
       }
     }
+    if (options.forStrategy || state.strategyId) {
+      if (selectBoundStrategySession({ force: true, preserveFocus: true })) return;
+      beginUnboundStrategySession();
+      return;
+    }
     if (!state.workspace && !state.freshSessionRequested && state.sessions.length) {
       selectSession(state.sessions[0].path || '', { fromLoad: true });
       return;
@@ -3078,6 +3199,9 @@ function selectSession(path, options = {}) {
   sessionIdDisplay.textContent = state.sessionId || '—';
   sessionBar.classList.toggle('show', Boolean(state.sessionId));
   renderSessionHistory(session);
+  if (!options.fromLoad && state.strategyId) {
+    bindStrategySession(state.strategyId, state.workspace);
+  }
   if (!options.fromLoad && !options.preserveFocus) taskInput.focus();
 }
 
@@ -3205,28 +3329,56 @@ function updateSidebar() {
 const modal = document.getElementById('approval-modal');
 const userInputModal = document.getElementById('user-input-modal');
 function showApprovalModal(data) {
-  document.getElementById('approval-tool').textContent = data.tool_name || 'BashTool';
-  document.getElementById('approval-command').textContent = data.command || '';
-  document.getElementById('approval-risk').textContent = data.risk_reason || '';
-  modal.classList.add('open');
-  return new Promise((resolve) => {
-    state.approvalPending = { request_id: data.request_id, resolve };
-  });
-}
-document.getElementById('btn-approve').addEventListener('click', () => {
-  if (state.approvalPending) {
-    state.approvals++; updateSidebar();
-    state.ws.send(JSON.stringify({ type: 'approval', request_id: state.approvalPending.request_id, approved: true }));
-    state.approvalPending = null;
+  state.approvalPending = {
+    request_id: data.request_id,
+    tool_name: data.tool_name || 'BashTool',
+    command: data.command || '',
+    risk_reason: data.risk_reason || '',
+  };
+  postAgentMessage('agent:approval-request', serializeApprovalRequest(state.approvalPending));
+  emitAgentState();
+
+  if (!isEmbeddedAgent()) {
+    document.getElementById('approval-tool').textContent = state.approvalPending.tool_name;
+    document.getElementById('approval-command').textContent = state.approvalPending.command;
+    document.getElementById('approval-risk').textContent = state.approvalPending.risk_reason;
+    modal.classList.add('open');
   }
+}
+
+function isEmbeddedAgent() {
+  return Boolean(window.parent && window.parent !== window);
+}
+
+function resolveApprovalRequest(requestId, approved, reason = "") {
+  if (!state.approvalPending) return;
+  if (requestId && requestId !== state.approvalPending.request_id) return;
+  if (approved) state.approvals++;
+  updateSidebar();
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    state.ws.send(JSON.stringify({
+      type: 'approval',
+      request_id: state.approvalPending.request_id,
+      approved: Boolean(approved),
+      reason: approved ? '' : (reason || '用户拒绝'),
+    }));
+  }
+  const resolved = serializeApprovalRequest(state.approvalPending);
+  state.approvalPending = null;
   modal.classList.remove('open');
+  postAgentMessage('agent:approval-resolved', {
+    ...resolved,
+    approved: Boolean(approved),
+    reason: approved ? '' : (reason || '用户拒绝'),
+  });
+  emitAgentState();
+}
+
+document.getElementById('btn-approve').addEventListener('click', () => {
+  resolveApprovalRequest('', true);
 });
 document.getElementById('btn-reject').addEventListener('click', () => {
-  if (state.approvalPending) {
-    state.ws.send(JSON.stringify({ type: 'approval', request_id: state.approvalPending.request_id, approved: false, reason: '用户拒绝' }));
-    state.approvalPending = null;
-  }
-  modal.classList.remove('open');
+  resolveApprovalRequest('', false, '用户拒绝');
 });
 
 function showUserInputModal(data) {
@@ -3286,9 +3438,14 @@ function parseUserInputQuestion(item) {
     };
   }
 
-  const parsed = parseEmbeddedOptions(String(item.question || ''));
+  const parsed = parseEmbeddedOptions([
+    String(item.question || ''),
+    String(item.context || ''),
+    String(item.default || ''),
+  ].filter(Boolean).join('\n'));
+  const rawQuestion = String(item.question || '').trim();
   return {
-    question: parsed.question,
+    question: parsed.question || rawQuestion,
     context: String(item.context || '').trim(),
     default: String(item.default || ''),
     options: parsed.options,
@@ -3296,7 +3453,23 @@ function parseUserInputQuestion(item) {
 }
 
 function normalizeChoiceOptions(options) {
-  if (!Array.isArray(options)) return [];
+  if (!options) return [];
+  if (typeof options === 'string') {
+    return parseOptionsText(options);
+  }
+  if (!Array.isArray(options)) {
+    if (typeof options === 'object') {
+      if (Array.isArray(options.options)) return normalizeChoiceOptions(options.options);
+      if (Array.isArray(options.choices)) return normalizeChoiceOptions(options.choices);
+      if (Array.isArray(options.values)) return normalizeChoiceOptions(options.values);
+      const label = options.label || options.name || options.title || options.value || '';
+      if (label) {
+        const value = options.value || label;
+        return [{ label: String(label).trim(), value: String(value).trim() }].filter((option) => option.label);
+      }
+    }
+    return [];
+  }
   return options
     .map((option) => {
       if (option && typeof option === 'object') {
@@ -3311,7 +3484,18 @@ function normalizeChoiceOptions(options) {
 }
 
 function parseEmbeddedOptions(text) {
-  const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const raw = String(text || '').trim();
+  const jsonOptions = extractJsonOptions(raw);
+  if (jsonOptions.length) {
+    return { question: stripOptionFragments(raw), options: jsonOptions };
+  }
+
+  const inline = extractInlineOptions(raw);
+  if (inline.options.length) {
+    return inline;
+  }
+
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const options = [];
   const questionLines = [];
   for (const line of lines) {
@@ -3325,7 +3509,78 @@ function parseEmbeddedOptions(text) {
   if (options.length >= 2 && questionLines.length) {
     return { question: questionLines.join('\n'), options };
   }
-  return { question: text.trim(), options: [] };
+  return { question: raw, options: [] };
+}
+
+function parseOptionsText(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    const nested = normalizeChoiceOptions(parsed);
+    if (nested.length) return nested;
+  } catch (_) {}
+
+  const jsonOptions = extractJsonOptions(raw);
+  if (jsonOptions.length) return jsonOptions;
+
+  const embedded = parseEmbeddedOptions(raw);
+  if (embedded.options.length) return embedded.options;
+
+  const cleaned = raw
+    .replace(/^(?:选项|可选项|choices?|options?)\s*[:：]\s*/i, '')
+    .replace(/^[\[\(（【]\s*/, '')
+    .replace(/\s*[\]\)）】]$/, '');
+  const parts = cleaned
+    .split(/\s*(?:[,，、;；|\/]|或|还是)\s*/)
+    .map((part) => part.replace(/^["'“”‘’]|["'“”‘’]$/g, '').trim())
+    .filter(Boolean);
+  if (parts.length < 2) return [];
+  return parts.map((part) => ({ label: part, value: part }));
+}
+
+function extractJsonOptions(text) {
+  const raw = String(text || '');
+  const candidates = [];
+  const objectMatch = raw.match(/\{[\s\S]*?(?:"options"|"choices"|"values")[\s\S]*?\}/i);
+  if (objectMatch) candidates.push(objectMatch[0]);
+  const arrayMatch = raw.match(/\[[\s\S]*?\]/);
+  if (arrayMatch) candidates.push(arrayMatch[0]);
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      const options = normalizeChoiceOptions(parsed);
+      if (options.length) return options;
+    } catch (_) {}
+  }
+  return [];
+}
+
+function extractInlineOptions(text) {
+  const raw = String(text || '').trim();
+  const patterns = [
+    /(?:选项|可选项|请选择|choices?|options?)\s*[:：]\s*([^\n]+)/i,
+    /(?:包括|有)\s*[:：]?\s*([^\n]+(?:[,，、;；|\/][^\n]+)+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = raw.match(pattern);
+    if (!match) continue;
+    const options = parseOptionsText(match[1]);
+    if (options.length) {
+      const question = raw.replace(match[0], '').trim() || raw.split(/\r?\n/)[0].trim();
+      return { question, options };
+    }
+  }
+  return { question: raw, options: [] };
+}
+
+function stripOptionFragments(text) {
+  return String(text || '')
+    .replace(/\{[\s\S]*?(?:"options"|"choices"|"values")[\s\S]*?\}/ig, '')
+    .replace(/\[[\s\S]*?\]/g, '')
+    .replace(/(?:选项|可选项|choices?|options?)\s*[:：]\s*[^\n]+/ig, '')
+    .trim();
 }
 
 function renderUserInputStep() {

@@ -19,6 +19,7 @@ import json
 import mimetypes
 import threading
 import time
+import uuid
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -159,7 +160,7 @@ async def ws_handler(ws: WebSocket) -> None:
 
             task: str = data.get("task", "")
             workspace_raw: str | None = data.get("workspace")
-            session_workspace = Path(workspace_raw).expanduser() if workspace_raw else None
+            session_workspace = _resolve_agent_conversation_workspace(workspace_raw)
 
             def run_in_thread(task=task, sw=session_workspace) -> None:
                 try:
@@ -167,7 +168,7 @@ async def ws_handler(ws: WebSocket) -> None:
                     user_input_handler = _bridge.make_user_input_handler(event_queue, loop)
                     for event in stream_session_events(
                         task,
-                        session_workspace=sw or AGENT_WORKSPACE,
+                        session_workspace=sw,
                         max_attempts=int(data.get("max_attempts", 3)),
                         approval_mode=str(data.get("approval_mode", "auto")),
                         approval_handler=handler,
@@ -249,14 +250,83 @@ async def _safe_send(ws: WebSocket, event: dict[str, Any]) -> None:
 
 @agent_app.get("/api/workspaces")
 async def list_workspaces() -> list[dict[str, Any]]:
-    base = AGENT_WORKSPACE / ".exelixi" / "workspaces"
+    base = AGENT_WORKSPACE
     if not base.is_dir():
         return []
-    entries = []
+    entries: list[dict[str, Any]] = []
     for child in sorted(base.iterdir()):
-        if child.is_dir():
-            entries.append({"name": child.name, "path": str(child), "title": child.name})
-    return sorted(entries, key=lambda item: item.get("name", ""), reverse=True)
+        if child.is_dir() and not child.name.startswith("."):
+            entries.append(_workspace_session_info(child))
+    return sorted(entries, key=lambda item: str(item.get("updated_at", "")), reverse=True)
+
+
+def _resolve_agent_conversation_workspace(workspace_raw: str | None) -> Path:
+    """Resume an existing conversation folder, or create a new one under workspace/."""
+    AGENT_WORKSPACE.mkdir(parents=True, exist_ok=True)
+    if workspace_raw:
+        requested = Path(workspace_raw).expanduser()
+        try:
+            resolved = requested.resolve()
+            root = AGENT_WORKSPACE.resolve()
+            resolved.relative_to(root)
+            if resolved != root:
+                resolved.mkdir(parents=True, exist_ok=True)
+                return resolved
+        except (OSError, ValueError):
+            pass
+    return _new_agent_conversation_workspace()
+
+
+def _new_agent_conversation_workspace() -> Path:
+    AGENT_WORKSPACE.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    for _ in range(100):
+        workspace = AGENT_WORKSPACE / f"conversation-{stamp}-{uuid.uuid4().hex[:6]}"
+        try:
+            workspace.mkdir(parents=True, exist_ok=False)
+            return workspace
+        except FileExistsError:
+            continue
+    workspace = AGENT_WORKSPACE / f"conversation-{stamp}-{uuid.uuid4().hex}"
+    workspace.mkdir(parents=True, exist_ok=False)
+    return workspace
+
+
+def _workspace_session_info(workspace: Path) -> dict[str, Any]:
+    info: dict[str, Any] = {
+        "name": workspace.name,
+        "path": str(workspace),
+        "title": workspace.name,
+        "session_id": "",
+        "turn_index": 0,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(workspace.stat().st_mtime)),
+        "last_route": "",
+        "last_task": "",
+        "recent_turns": [],
+    }
+    session_file = workspace / ".exelixi" / "session" / "session.json"
+    if not session_file.is_file():
+        return info
+    try:
+        raw = json.loads(session_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return info
+    if not isinstance(raw, dict):
+        return info
+    recent_turns = raw.get("recent_turns")
+    if not isinstance(recent_turns, list):
+        recent_turns = []
+    last_task = str(raw.get("last_task", "") or "")
+    info.update({
+        "title": last_task[:80] or str(raw.get("session_id", "") or "") or workspace.name,
+        "session_id": str(raw.get("session_id", "") or ""),
+        "turn_index": int(raw.get("turn_index") or 0),
+        "updated_at": str(raw.get("updated_at", "") or info["updated_at"]),
+        "last_route": str(raw.get("last_route", "") or ""),
+        "last_task": last_task,
+        "recent_turns": recent_turns[-8:],
+    })
+    return info
 
 
 # ── 回测 API (FastAPI 路由) ──────────────────────────────────────────────────

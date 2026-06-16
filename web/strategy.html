@@ -58,6 +58,10 @@
           </div>
           <div class="file-preview-hint" id="filePreviewHint">Agent 创建策略文件后，点击文件即可在此预览代码</div>
           <pre id="filePreviewContent" class="file-preview-body"></pre>
+          <div class="approval-actions" id="approvalActions" hidden>
+            <button id="approvalRejectButton" class="approval-button reject" type="button">拒绝</button>
+            <button id="approvalApproveButton" class="approval-button approve" type="button">同意</button>
+          </div>
         </div>
       </div>
     </section>
@@ -81,6 +85,7 @@
   <script>
     // 当前选中的策略 ID，传递给 Agent 作为对话上下文
     let currentStrategyId = null;
+    let currentApprovalRequest = null;
 
     window.addEventListener("message", (event) => {
       if (event.origin !== window.location.origin) return;
@@ -91,6 +96,15 @@
         // Agent 生成文件后标记当前策略为有效
         if (currentStrategyId && typeof markStrategyFileGenerated === "function") {
           markStrategyFileGenerated(currentStrategyId);
+        }
+      }
+      if (msg?.type === "agent:approval-request") {
+        showApprovalRequest(msg);
+      }
+      if (msg?.type === "agent:approval-resolved") {
+        if (!currentApprovalRequest || currentApprovalRequest.request_id === msg.request_id) {
+          currentApprovalRequest = null;
+          hideApprovalActions();
         }
       }
       if (msg?.type === "agent:file-previews") {
@@ -111,9 +125,38 @@
       const contentEl = document.getElementById("filePreviewContent");
       const hintEl = document.getElementById("filePreviewHint");
       if (!el || !nameEl || !contentEl) return;
+      hideApprovalActions();
       nameEl.textContent = "Agent_strategy/" + name;
       contentEl.textContent = content || "";
       if (hintEl) hintEl.hidden = true;
+      el.classList.add("open");
+    }
+
+    function showApprovalRequest(request) {
+      const el = document.getElementById("filePreview");
+      const nameEl = document.getElementById("filePreviewName");
+      const contentEl = document.getElementById("filePreviewContent");
+      const hintEl = document.getElementById("filePreviewHint");
+      const actionsEl = document.getElementById("approvalActions");
+      if (!el || !nameEl || !contentEl || !actionsEl) return;
+      currentApprovalRequest = {
+        request_id: request.request_id || request.requestId || "",
+        toolName: request.toolName || request.tool_name || "BashTool",
+        command: request.command || "",
+        riskReason: request.riskReason || request.risk_reason || "",
+      };
+      nameEl.textContent = "权限确认 · " + currentApprovalRequest.toolName;
+      contentEl.textContent = [
+        "工具：" + currentApprovalRequest.toolName,
+        "",
+        "操作：",
+        currentApprovalRequest.command || "—",
+        "",
+        "原因：",
+        currentApprovalRequest.riskReason || "—",
+      ].join("\n");
+      if (hintEl) hintEl.hidden = true;
+      actionsEl.hidden = false;
       el.classList.add("open");
     }
 
@@ -122,10 +165,33 @@
       const hintEl = document.getElementById("filePreviewHint");
       if (el) el.classList.remove("open");
       if (hintEl) hintEl.hidden = false;
+      hideApprovalActions();
+    }
+
+    function hideApprovalActions() {
+      const actionsEl = document.getElementById("approvalActions");
+      if (actionsEl) actionsEl.hidden = true;
+    }
+
+    function sendApprovalDecision(approved) {
+      if (!currentApprovalRequest) return;
+      const frame = document.getElementById("chatFrame");
+      if (frame?.contentWindow) {
+        frame.contentWindow.postMessage({
+          type: "agent:approval",
+          request_id: currentApprovalRequest.request_id,
+          approved: Boolean(approved),
+          reason: approved ? "" : "用户拒绝",
+        }, window.location.origin);
+      }
+      currentApprovalRequest = null;
+      hideFilePreview();
     }
 
     // 点击关闭按钮或遮罩关闭
     document.getElementById("filePreviewClose")?.addEventListener("click", hideFilePreview);
+    document.getElementById("approvalApproveButton")?.addEventListener("click", () => sendApprovalDecision(true));
+    document.getElementById("approvalRejectButton")?.addEventListener("click", () => sendApprovalDecision(false));
 
     function updateAgentStatus(status) {
       const badge = document.getElementById("agentStatus");
@@ -151,6 +217,12 @@
     document.getElementById("chatFrame")?.addEventListener("load", () => {
       const frame = document.getElementById("chatFrame");
       if (!frame?.contentWindow) return;
+      const selectedStrategy = typeof pageState !== "undefined" && pageState.selected
+        ? pageState.selected
+        : (typeof loadSelectedStrategy === "function" ? loadSelectedStrategy() : null);
+      if (selectedStrategy) {
+        sendStrategyToAgent(selectedStrategy.id, selectedStrategy.title);
+      }
       frame.contentWindow.postMessage({ type: "agent:get-state" }, window.location.origin);
       frame.contentWindow.postMessage({ type: "agent:get-file-previews" }, window.location.origin);
     });

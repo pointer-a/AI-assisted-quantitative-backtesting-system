@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 from typing import Any
 
 from exelixi.core.approval import (
@@ -16,12 +18,12 @@ def ask_user(
     question: str,
     context: str = "",
     default: str = "",
-    options: list[str] | None = None,
+    options: Any = None,
 ) -> dict[str, Any]:
     question = str(question or "").strip()
     if not question:
         return {"ok": False, "error": "question must not be empty"}
-    normalized_options = [str(option).strip() for option in (options or []) if str(option).strip()]
+    normalized_options = _normalize_options(options)
     request = make_user_input_request(
         question,
         context=str(context or ""),
@@ -51,6 +53,40 @@ def ask_user(
     if canceled:
         return {**base, "ok": False, "canceled": True, "error": "user canceled the request"}
     return {**base, "ok": True, "answer": answer}
+
+
+def _normalize_options(options: Any) -> list[str]:
+    if not options:
+        return []
+    if isinstance(options, str):
+        text = options.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+            parsed_options = _normalize_options(parsed)
+            if parsed_options:
+                return parsed_options
+        except json.JSONDecodeError:
+            pass
+        text = re.sub(r"^(?:选项|可选项|choices?|options?)\s*[:：]\s*", "", text, flags=re.IGNORECASE)
+        parts = [
+            part.strip(" \t\r\n\"'“”‘’")
+            for part in re.split(r"\s*(?:[,，、;；|/]|或|还是)\s*", text)
+        ]
+        return [part for part in parts if part]
+    if isinstance(options, dict):
+        for key in ("options", "choices", "values"):
+            if key in options:
+                return _normalize_options(options[key])
+        label = options.get("label") or options.get("name") or options.get("title") or options.get("value")
+        return [str(label).strip()] if label else []
+    if isinstance(options, (list, tuple, set)):
+        normalized: list[str] = []
+        for option in options:
+            normalized.extend(_normalize_options(option) if isinstance(option, (dict, list, tuple, set)) else [str(option).strip()])
+        return [option for option in normalized if option]
+    return [str(options).strip()]
 
 
 def request_write_approval(

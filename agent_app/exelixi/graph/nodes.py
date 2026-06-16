@@ -631,6 +631,14 @@ def estimate_context_tokens(state: ExelixiGraphState) -> int:
 
 
 def _build_planner_tools(state: ExelixiGraphState, writer) -> list[StructuredTool]:
+    def ask_user_tool(
+        question: str,
+        context: str = "",
+        default: str = "",
+        options: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return ask_user(state["runtime"], question, context, default, options)
+
     return [
         StructuredTool.from_function(
             name="TodoWriteTool",
@@ -654,12 +662,11 @@ def _build_planner_tools(state: ExelixiGraphState, writer) -> list[StructuredToo
         ),
         StructuredTool.from_function(
             name="AskUserTool",
-            func=lambda question, context="", default="", options=None: ask_user(
-                state["runtime"], question, context, default, options
-            ),
+            func=ask_user_tool,
             description=(
                 "Ask the user for missing information and wait for their reply. "
-                "Args: question, optional context, optional default, optional options list for clickable choices."
+                "Args: question, optional context, optional default, optional options list for clickable choices. "
+                "When choices are available, pass options as an array of short labels."
             ),
         ),
     ]

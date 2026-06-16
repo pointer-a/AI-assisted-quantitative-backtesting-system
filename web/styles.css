@@ -856,6 +856,42 @@ canvas {
   background: #0f1722;
 }
 
+.approval-actions {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border);
+  background: #0f1722;
+}
+
+.approval-actions[hidden] {
+  display: none;
+}
+
+.approval-button {
+  flex: 1;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.approval-button.approve {
+  border-color: rgba(51, 194, 183, .58);
+  background: linear-gradient(180deg, #13a7a1, #0b7076);
+  color: #effffb;
+}
+
+.approval-button.reject {
+  border-color: rgba(251, 113, 133, .42);
+  background: rgba(251, 113, 133, .12);
+  color: #ffd1da;
+}
+
+.approval-button:hover {
+  transform: translateY(-1px);
+}
+
 @media (max-width: 1240px) {
   .strategy-shell {
     grid-template-columns: 270px minmax(360px, 1fr) 510px;
